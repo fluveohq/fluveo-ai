@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the fluveo-skills repository. Stdlib only. Exit 0 on success.
+"""Validate the fluveo-ai repository. Stdlib only. Exit 0 on success.
 
 Checks:
   1. skills/*/SKILL.md frontmatter has non-empty name (== dir name) and description.

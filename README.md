@@ -1,4 +1,4 @@
-# fluveo-skills
+# fluveo-ai
 
 Agent skills that let AI coding agents (Claude Code, Codex, Cursor, and any `SKILL.md`-aware agent) integrate a
 merchant's software with the **Fluveo payments API** — directly over HTTP, **no SDK required**. The agent reads
@@ -10,23 +10,20 @@ The exact contract ships in this repo as `spec/openapi.subset.json`; every endpo
 in the skills is validated against it.
 
 ## Install
-
-The remote install commands below assume the repository is published at `github.com/fluveo/fluveo-skills`; until then, install from a local checkout or copy the `skills/` directories manually.
-
 **Claude Code (plugin)**
 
 ```bash
-claude plugin add https://github.com/fluveo/fluveo-skills   # once published
+claude plugin add https://github.com/leanrails-inc/fluveo-ai
 # or from a local checkout:
-claude plugin add /path/to/fluveo-skills
+claude plugin add /path/to/fluveo-ai
 ```
 
 **`npx skills add` (Claude Code, Codex, Cursor, others)**
 
 ```bash
-npx skills add fluveo/fluveo-skills   # once published
+npx skills add leanrails-inc/fluveo-ai
 # single skill:
-npx skills add fluveo/fluveo-skills --skill fluveo-integrate
+npx skills add leanrails-inc/fluveo-ai --skill fluveo-integrate
 ```
 
 **Codex** — copy `skills/fluveo-integrate` and `skills/fluveo-docs` into `~/.codex/skills/` (or your
@@ -38,8 +35,8 @@ or reference `skills/fluveo-integrate/SKILL.md` from a Cursor rule.
 **Manual (any agent)**
 
 ```bash
-git clone https://github.com/fluveo/fluveo-skills
-# point your agent at fluveo-skills/skills/fluveo-integrate/SKILL.md
+git clone https://github.com/leanrails-inc/fluveo-ai
+# point your agent at fluveo-ai/skills/fluveo-integrate/SKILL.md
 ```
 
 The `fluveo-docs` skill expects `spec/openapi.subset.json` at the plugin root (sibling of `skills/`). Keep
