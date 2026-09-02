@@ -10,6 +10,7 @@ The exact contract ships in this repo as `spec/openapi.subset.json`; every endpo
 in the skills is validated against it.
 
 ## Install
+
 **Claude Code (plugin)**
 
 ```bash
