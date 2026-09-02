@@ -1,0 +1,20 @@
+{
+  "name": "fluveo",
+  "version": "0.1.0",
+  "description": "Agent skills for integrating with the Fluveo payments API (Stripe-shaped /v1) over raw HTTP: payment intents, refunds, hosted checkout, payment links, customers, billing, balance.",
+  "author": {
+    "name": "Fluveo"
+  },
+  "homepage": "https://api.fluveo.dev",
+  "repository": "https://github.com/fluveo/fluveo-skills",
+  "license": "MIT",
+  "keywords": [
+    "fluveo",
+    "payments",
+    "stripe-compatible",
+    "checkout",
+    "refunds",
+    "payment-intents"
+  ],
+  "skills": "./skills/"
+}
