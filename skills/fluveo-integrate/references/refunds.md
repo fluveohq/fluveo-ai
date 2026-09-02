@@ -87,7 +87,6 @@ retry with the **same** key. A concurrent duplicate gets `409 api_error` — wai
 | `pending` | Accepted, not yet settled. | Poll `GET /v1/refunds/{refund}`. |
 | `failed` | Rejected by the PSP. | Inspect `failure_reason`; contact support / retry with a new key if appropriate. |
 | `requires_action` | Customer interaction required (rare, region-specific). | Inspect `next_action`. |
-| `canceled` | Refund was cancelled. | — |
 
 ## Retrieve and poll
 

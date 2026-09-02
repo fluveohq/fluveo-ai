@@ -18,7 +18,8 @@ import sys
 import tempfile
 
 ID_PREFIXES = ("pi", "cus", "cs", "re", "ch", "plink", "seti", "prod", "price", "in", "sub", "txn", "ii", "pm", "li", "bt", "evt", "we")
-METHOD_PATH_RE = re.compile(r"\b(GET|POST|PUT|DELETE)\s+(/v1/[^\s`|)\]\"',>]+)")
+# Matches `GET /v1/x`, and table rows like | `GET` | `/v1/x` | (backticks/pipes/whitespace between method and path).
+METHOD_PATH_RE = re.compile(r"\b(GET|POST|PUT|DELETE)`?[\s|`]*(/v1/[^\s`|)\]\"',>]+)")
 URL_PATH_RE = re.compile(r"(?:api\.fluveo\.dev|localhost:8080)(/v1/[^\s`|)\]\"',>]+)")
 EXPLICIT_METHOD_RE = re.compile(r"-X\s+(GET|POST|PUT|DELETE)")
 SECRET_RE = re.compile(r"sk_(?:test|live)_[A-Za-z0-9]{8,}")
@@ -281,6 +282,7 @@ def self_test():
                      "POST /v1/payment_intents\n"
                      "GET /v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N\n"
                      "POST /v1/webhook_endpoints\n"
+                     "| `POST` | `/v1/payment_intents/{intent}/apply_thing` | table row |\n"
                      "curl https://api.fluveo.dev/v1/disputes -u sk_test_51Habcdefghijklmnop:\n")
         with open(os.path.join(tmp, "skills", "broken", "references", "not-available.md"), "w") as fh:
             fh.write("- `POST /v1/payment_intents` (wrongly listed)\n")
@@ -296,8 +298,9 @@ def self_test():
         assert got_na_conflict, "self-test: not-available conflict not caught"
         assert got_key, "self-test: fake key not caught"
         unknown_paths = {m for c, _w, m in rep.failures if c == 3 and "not in spec" in m}
-        assert not any("/v1/payment_intents/{x}" in m for m in unknown_paths), "self-test: id normalisation failed"
+        assert not any("GET /v1/payment_intents/{x} not" in m for m in unknown_paths), "self-test: id normalisation failed"
         assert any("/v1/disputes" in m for m in unknown_paths), "self-test: URL-form endpoint not caught"
+        assert any("/v1/payment_intents/{x}/apply_thing" in m for m in unknown_paths), "self-test: table-row endpoint not caught"
         print("self-test passed")
 
 

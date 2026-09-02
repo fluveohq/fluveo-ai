@@ -11,10 +11,12 @@ in the skills is validated against it.
 
 ## Install
 
+The remote install commands below assume the repository is published at `github.com/fluveo/fluveo-skills`; until then, install from a local checkout or copy the `skills/` directories manually.
+
 **Claude Code (plugin)**
 
 ```bash
-claude plugin add https://github.com/fluveo/fluveo-skills
+claude plugin add https://github.com/fluveo/fluveo-skills   # once published
 # or from a local checkout:
 claude plugin add /path/to/fluveo-skills
 ```
@@ -22,7 +24,7 @@ claude plugin add /path/to/fluveo-skills
 **`npx skills add` (Claude Code, Codex, Cursor, others)**
 
 ```bash
-npx skills add fluveo/fluveo-skills
+npx skills add fluveo/fluveo-skills   # once published
 # single skill:
 npx skills add fluveo/fluveo-skills --skill fluveo-integrate
 ```

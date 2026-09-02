@@ -124,10 +124,10 @@ Line items response (abbreviated):
 
 ```json
 { "object": "list", "url": "/v1/checkout/sessions/cs_6d65726368616e74a1b2c3d4e5f6/line_items", "has_more": false,
-  "data": [ { "id": "li_1", "object": "item", "description": "Demo Plan", "quantity": 2, "currency": "usd",
+  "data": [ { "id": "li_1PzLmN2xQRH9JfQu5Nk3", "object": "item", "description": "Demo Plan", "quantity": 2, "currency": "usd",
               "amount_subtotal": 4000, "amount_total": 4000, "amount_discount": 0, "amount_tax": 0,
-              "price": { "id": "price_1", "object": "price", "currency": "usd", "unit_amount": 2000,
-                         "product": { "id": "prod_1", "object": "product", "name": "Demo Plan" } } } ] }
+              "price": { "id": "price_1PzLkT2xQRH9JfQu5Nq7", "object": "price", "currency": "usd", "unit_amount": 2000,
+                         "product": { "id": "prod_QrTmN2xQRH9JfQu", "object": "product", "name": "Demo Plan" } } } ] }
 ```
 
 ## Update

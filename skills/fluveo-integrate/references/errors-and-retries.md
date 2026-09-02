@@ -63,7 +63,7 @@ Also: `400 invalid_stripe_version` for a bad `Stripe-Version` header.
 
 ## Idempotency journal
 
-`Idempotency-Key` (1–255 bytes, one header) is accepted on POST/PUT writes. Two tiers:
+`Idempotency-Key` (1–255 bytes, one header) is accepted on POST writes (the docs do not state whether `PUT /v1/checkout/branding` honours it; sending it there is harmless but unverified). Two tiers:
 
 **Durable 24 h byte-for-byte journal** — PaymentIntent create/update/confirm/capture/cancel; Refund
 create/update; Customer create/update; Checkout Session create/update/expire; Payment Link create.
