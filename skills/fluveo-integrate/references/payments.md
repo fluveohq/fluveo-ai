@@ -52,7 +52,7 @@ Contracted body fields (`application/x-www-form-urlencoded`): `amount` (required
 `customer`), `statement_descriptor_suffix`. Anything else is a named `400`.
 
 ```bash
-curl https://api.fluveo.dev/v1/payment_intents \
+curl https://api.devfluveo.com/v1/payment_intents \
   -u sk_test_example: \
   -H "Idempotency-Key: order-9001-create" \
   -d amount=4242 \
@@ -102,7 +102,7 @@ Non-card types return `400`.
 Test card (test mode only): number `4242424242424242`, `exp_month=12`, `exp_year=2030`, `cvc=123`.
 
 ```bash
-curl https://api.fluveo.dev/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N/confirm \
+curl https://api.devfluveo.com/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N/confirm \
   -u sk_test_example: \
   -H "Idempotency-Key: order-9001-confirm" \
   -d "payment_method_data[type]=card" \
@@ -140,7 +140,7 @@ first result).
 Send `confirm=true` together with `payment_method_data` on create:
 
 ```bash
-curl https://api.fluveo.dev/v1/payment_intents \
+curl https://api.devfluveo.com/v1/payment_intents \
   -u sk_test_example: \
   -H "Idempotency-Key: order-9001-charge" \
   -d amount=4242 -d currency=usd -d confirm=true \
@@ -172,7 +172,7 @@ Today only the built-in test simulator emits `redirect_to_url`; real-PSP challen
 
 ```bash
 # authorize
-curl https://api.fluveo.dev/v1/payment_intents \
+curl https://api.devfluveo.com/v1/payment_intents \
   -u sk_test_example: -H "Idempotency-Key: order-9002-auth" \
   -d amount=4242 -d currency=usd -d capture_method=manual -d confirm=true \
   -d "payment_method_data[type]=card" \
@@ -183,7 +183,7 @@ curl https://api.fluveo.dev/v1/payment_intents \
 # -> "status": "requires_capture", "amount_capturable": 4242
 
 # capture (full: omit amount_to_capture; partial: amount_to_capture < amount auto-refunds the remainder)
-curl https://api.fluveo.dev/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N/capture \
+curl https://api.devfluveo.com/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N/capture \
   -u sk_test_example: -H "Idempotency-Key: order-9002-capture" \
   -d amount_to_capture=4000 \
   -d statement_descriptor_suffix=ORDER9002
@@ -198,7 +198,7 @@ Releases an uncaptured authorization; nothing is charged. Body: optional `cancel
 (`abandoned` | `duplicate` | `fraudulent` | `requested_by_customer`).
 
 ```bash
-curl https://api.fluveo.dev/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N/cancel \
+curl https://api.devfluveo.com/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N/cancel \
   -u sk_test_example: -H "Idempotency-Key: order-9002-cancel" \
   -d cancellation_reason=requested_by_customer
 # -> "status": "canceled", "cancellation_reason": "requested_by_customer", "canceled_at": 1769350000
@@ -209,7 +209,7 @@ A `succeeded` intent cannot be cancelled — create a refund instead (`refunds.m
 ## Retrieve and poll
 
 ```bash
-curl https://api.fluveo.dev/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N -u sk_test_example:
+curl https://api.devfluveo.com/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N -u sk_test_example:
 ```
 
 Because there are no webhooks, this is the completion signal. Poll with backoff (e.g. 1s, 2s, 4s… cap 30s)
@@ -223,7 +223,7 @@ means the id does not exist for this merchant.
 `metadata[key]=` removes that key; a bare `metadata=` clears all public keys.
 
 ```bash
-curl https://api.fluveo.dev/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N \
+curl https://api.devfluveo.com/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N \
   -u sk_test_example: -H "Idempotency-Key: order-9001-meta-1" \
   --data-urlencode "metadata[shipment]=shp_77" -d description="Order 9001"
 ```
@@ -234,7 +234,7 @@ curl https://api.fluveo.dev/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N \
 default 10), `customer`, `starting_after`, `ending_before` (mutually exclusive). Any other filter → `400`.
 
 ```bash
-curl -G https://api.fluveo.dev/v1/payment_intents -u sk_test_example: -d limit=20 -d customer=cus_9R8e8AzB2xQRH9Jf
+curl -G https://api.devfluveo.com/v1/payment_intents -u sk_test_example: -d limit=20 -d customer=cus_9R8e8AzB2xQRH9Jf
 ```
 
 ```json
@@ -252,8 +252,8 @@ A successful PaymentIntent exposes its charge as `latest_charge` (`ch_...`). Cha
 cannot create, capture or update them.
 
 ```bash
-curl https://api.fluveo.dev/v1/charges/ch_3R9k8AzB2xQRH9Jf -u sk_test_example:
-curl -G https://api.fluveo.dev/v1/charges -u sk_test_example: -d payment_intent=pi_1A9e8AzB2xQRH9JfQu5N
+curl https://api.devfluveo.com/v1/charges/ch_3R9k8AzB2xQRH9Jf -u sk_test_example:
+curl -G https://api.devfluveo.com/v1/charges -u sk_test_example: -d payment_intent=pi_1A9e8AzB2xQRH9JfQu5N
 ```
 
 List query params: `limit`, `starting_after`, `ending_before`, `customer`, `payment_intent`.
@@ -276,8 +276,8 @@ List query params: `limit`, `starting_after`, `ending_before`, `customer`, `paym
 ```js
 // Node 18+: create+confirm, then poll. Form-encode with URLSearchParams (bracket keys are literal).
 const key = process.env.FLUVEO_API_KEY;
-const BASE = "https://api.fluveo.dev";
-const headers = { Authorization: `Bearer ${key}` };
+const BASE = process.env.FLUVEO_API_BASE ?? "https://api.devfluveo.com";
+const headers = { Authorization: `Bearer ${key}`, "User-Agent": "myshop/1.0" };
 
 async function fluveo(method, path, form, idempotencyKey) {
   const res = await fetch(BASE + path, {
@@ -314,11 +314,13 @@ for (let delay = 1000; !["succeeded", "requires_capture", "canceled", "requires_
 ```python
 import os, time, requests
 
-BASE = "https://api.fluveo.dev"
+BASE = os.environ.get("FLUVEO_API_BASE", "https://api.devfluveo.com")
 AUTH = (os.environ["FLUVEO_API_KEY"], "")   # Basic auth, empty password
 
 def fluveo(method, path, data=None, idempotency_key=None):
-    headers = {"Idempotency-Key": idempotency_key} if idempotency_key else {}
+    headers = {"User-Agent": "myshop/1.0"}
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
     r = requests.request(method, BASE + path, auth=AUTH, data=data, headers=headers, timeout=30)
     body = r.json()
     if not r.ok:

@@ -10,7 +10,7 @@ operation against `spec/openapi.subset.json`.
 
 | | Stripe | Fluveo |
 |---|---|---|
-| Base URL | `https://api.stripe.com` | `https://api.fluveo.dev` |
+| Base URL | `https://api.stripe.com` | `https://api.devfluveo.com` |
 | Secret | `STRIPE_SECRET_KEY` (`sk_test_`/`sk_live_`) | `FLUVEO_API_KEY` (`sk_test_*` only) |
 | Publishable key | `pk_*` | not issued |
 | Restricted key | `rk_*` | not issued |
@@ -70,7 +70,7 @@ Caveats: SDK method presence ≠ server support (a call outside the subset retur
 ```js
 import Stripe from "stripe";
 const fluveo = new Stripe(process.env.FLUVEO_API_KEY, {
-  host: "api.fluveo.dev",
+  host: "api.devfluveo.com",
   protocol: "https",
   port: 443,
   apiVersion: "2026-05-27.dahlia",
@@ -85,7 +85,7 @@ const pi = await fluveo.paymentIntents.create(
 ```python
 import os, stripe
 stripe.api_key = os.environ["FLUVEO_API_KEY"]
-stripe.api_base = "https://api.fluveo.dev"
+stripe.api_base = "https://api.devfluveo.com"
 stripe.api_version = "2026-05-27.dahlia"
 stripe.max_network_retries = 0
 

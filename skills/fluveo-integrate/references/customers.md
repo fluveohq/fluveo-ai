@@ -25,7 +25,7 @@ Exactly six accepted fields: `email`, `name`, `phone`, `description`, `address[l
 `metadata[key]`. `payment_method`, `shipping`, `invoice_settings` etc. → named `400`.
 
 ```bash
-curl https://api.fluveo.dev/v1/customers \
+curl https://api.devfluveo.com/v1/customers \
   -u sk_test_example: \
   -H "Idempotency-Key: signup-user-501" \
   -d email=ada@example.com \
@@ -62,13 +62,13 @@ Store `id`; it is stable. Idempotent create: same key + same body within 24 h re
 ## Retrieve / update / delete
 
 ```bash
-curl https://api.fluveo.dev/v1/customers/cus_9R8e8AzB2xQRH9Jf -u sk_test_example:
+curl https://api.devfluveo.com/v1/customers/cus_9R8e8AzB2xQRH9Jf -u sk_test_example:
 
-curl https://api.fluveo.dev/v1/customers/cus_9R8e8AzB2xQRH9Jf -u sk_test_example: \
+curl https://api.devfluveo.com/v1/customers/cus_9R8e8AzB2xQRH9Jf -u sk_test_example: \
   -H "Idempotency-Key: cus-501-update-3" \
   -d email=ada@newdomain.example --data-urlencode "metadata[tier]=gold"
 
-curl -X DELETE https://api.fluveo.dev/v1/customers/cus_9R8e8AzB2xQRH9Jf -u sk_test_example:
+curl -X DELETE https://api.devfluveo.com/v1/customers/cus_9R8e8AzB2xQRH9Jf -u sk_test_example:
 ```
 
 Update uses metadata patch semantics (empty `metadata[key]=` deletes; bare `metadata=` clears all).
@@ -84,8 +84,8 @@ Query params: `limit` (1–100), `starting_after`, `ending_before`, `email` (exa
 The list is a projection that can lag a just-created customer; retrieve is authoritative.
 
 ```bash
-curl -G https://api.fluveo.dev/v1/customers -u sk_test_example: -d email=ada@example.com
-curl -G https://api.fluveo.dev/v1/customers -u sk_test_example: -d limit=50 -d starting_after=cus_9R8e8AzB2xQRH9Jf
+curl -G https://api.devfluveo.com/v1/customers -u sk_test_example: -d email=ada@example.com
+curl -G https://api.devfluveo.com/v1/customers -u sk_test_example: -d limit=50 -d starting_after=cus_9R8e8AzB2xQRH9Jf
 ```
 
 ## Customer payment methods
@@ -95,7 +95,7 @@ curl -G https://api.fluveo.dev/v1/customers -u sk_test_example: -d limit=50 -d s
 the first page is reachable even if `has_more` is `true`.
 
 ```bash
-curl -G https://api.fluveo.dev/v1/customers/cus_9R8e8AzB2xQRH9Jf/payment_methods -u sk_test_example: -d type=card -d limit=10
+curl -G https://api.devfluveo.com/v1/customers/cus_9R8e8AzB2xQRH9Jf/payment_methods -u sk_test_example: -d type=card -d limit=10
 ```
 
 ```json
@@ -119,7 +119,7 @@ Body fields (create/update/confirm): `customer`, `confirm`, `currency`, `descrip
 (`off_session` | `on_session`), `client_secret`. Cancel body: `cancellation_reason`.
 
 ```bash
-curl https://api.fluveo.dev/v1/setup_intents \
+curl https://api.devfluveo.com/v1/setup_intents \
   -u sk_test_example: -H "Idempotency-Key: seti-user-501-1" \
   -d customer=cus_9R8e8AzB2xQRH9Jf -d confirm=true -d setup_future_usage=off_session \
   -d "payment_method_data[type]=card" \
@@ -152,11 +152,11 @@ curl https://api.fluveo.dev/v1/setup_intents \
 `succeeded`, `canceled`. Retrieve / confirm / cancel:
 
 ```bash
-curl https://api.fluveo.dev/v1/setup_intents/seti_1A9e8AzB2xQRH9JfQu5N -u sk_test_example:
-curl https://api.fluveo.dev/v1/setup_intents/seti_1A9e8AzB2xQRH9JfQu5N/confirm -u sk_test_example: \
+curl https://api.devfluveo.com/v1/setup_intents/seti_1A9e8AzB2xQRH9JfQu5N -u sk_test_example:
+curl https://api.devfluveo.com/v1/setup_intents/seti_1A9e8AzB2xQRH9JfQu5N/confirm -u sk_test_example: \
   -d "payment_method_data[type]=card" -d "payment_method_data[card][number]=4242424242424242" \
   -d "payment_method_data[card][exp_month]=12" -d "payment_method_data[card][exp_year]=2030" -d "payment_method_data[card][cvc]=123"
-curl https://api.fluveo.dev/v1/setup_intents/seti_1A9e8AzB2xQRH9JfQu5N/cancel -u sk_test_example: -d cancellation_reason=abandoned
+curl https://api.devfluveo.com/v1/setup_intents/seti_1A9e8AzB2xQRH9JfQu5N/cancel -u sk_test_example: -d cancellation_reason=abandoned
 ```
 
 **`GET /v1/setup_intents` (list)** is declared with `limit`/`starting_after`/`ending_before`/`customer` but its
@@ -174,7 +174,7 @@ Re-check `not-available.md` for updates before assuming this changed.
 ## Node and Python
 
 ```js
-const r = await fetch("https://api.fluveo.dev/v1/customers", {
+const r = await fetch("https://api.devfluveo.com/v1/customers", {
   method: "POST",
   headers: { Authorization: `Bearer ${process.env.FLUVEO_API_KEY}`,
              "Content-Type": "application/x-www-form-urlencoded",
@@ -188,9 +188,9 @@ if (!r.ok) throw new Error(customer.error.message);
 ```python
 import os, requests
 AUTH = (os.environ["FLUVEO_API_KEY"], "")
-customer = requests.post("https://api.fluveo.dev/v1/customers", auth=AUTH,
+customer = requests.post("https://api.devfluveo.com/v1/customers", auth=AUTH,
     headers={"Idempotency-Key": f"signup-user-{user_id}"},
     data={"email": email, "name": name, "metadata[user_id]": user_id}).json()
-cards = requests.get(f"https://api.fluveo.dev/v1/customers/{customer['id']}/payment_methods",
+cards = requests.get(f"https://api.devfluveo.com/v1/customers/{customer['id']}/payment_methods",
     auth=AUTH, params={"type": "card", "limit": 10}).json()["data"]
 ```

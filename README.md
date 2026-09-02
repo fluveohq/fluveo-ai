@@ -3,7 +3,7 @@
 Agent skills that let AI coding agents (Claude Code, Codex, Cursor, and any `SKILL.md`-aware agent) integrate a
 merchant's software with the **Fluveo payments API** — directly over HTTP, **no SDK required**. The agent reads
 the skill, opens the relevant reference, and writes `curl` / `fetch` / `requests` code against
-`https://api.fluveo.dev/v1`.
+`https://api.devfluveo.com/v1`.
 
 Fluveo's `/v1` is a Stripe-shaped, curated subset (57 operations, pinned to Stripe API `2026-05-27.dahlia`).
 The exact contract ships in this repo as `spec/openapi.subset.json`; every endpoint, parameter and response field
@@ -121,7 +121,9 @@ the docs win for behaviour. Disagreements found while writing the skills:
   `2026-05-27.dahlia` or omit. The skill follows the platform policy.
 - **Checkout Session `url` / Payment Link `url` host.** Docs show `http://localhost:8080/c/...` and
   `https://pay.fluveo.com/p/...` respectively; the spec describes `{base}/c/{cs_id}` and `{base}/p/{plink_id}`.
-  Examples use `https://api.fluveo.dev` as the base; treat the returned `url` as opaque.
+  Examples use `https://api.devfluveo.com` as the base; treat the returned `url` as opaque.
+- **Upstream docs cite `api.fluveo.dev`**; the environment that exists today is `api.devfluveo.com` /
+  `dashboard.devfluveo.com` / `pay.devfluveo.com`. Update when production hosts are published.
 - **`created` filters.** `stripe-divergences.md` says `created[...]` is unsupported on lists, but the spec declares
   `created`, `created[gt|gte|lt|lte]` on `GET /v1/checkout/sessions` only. The skill allows them only there.
 - **`expand[]`.** Declared only on `GET /v1/balance_transactions`; docs mention `expand[]=payment_intent` on

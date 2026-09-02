@@ -20,7 +20,7 @@ Create body fields: `payment_intent` (required, `pi_...`), `amount` (integer min
 ## Full refund
 
 ```bash
-curl https://api.fluveo.dev/v1/refunds \
+curl https://api.devfluveo.com/v1/refunds \
   -u sk_test_example: \
   -H "Idempotency-Key: order-9001-refund-full" \
   -d payment_intent=pi_1A9e8AzB2xQRH9JfQu5N \
@@ -55,7 +55,7 @@ Notes: `balance_transaction` is currently always `null` (the refund still appear
 ## Partial refund
 
 ```bash
-curl https://api.fluveo.dev/v1/refunds \
+curl https://api.devfluveo.com/v1/refunds \
   -u sk_test_example: \
   -H "Idempotency-Key: order-9001-refund-1" \
   -d payment_intent=pi_1A9e8AzB2xQRH9JfQu5N \
@@ -91,7 +91,7 @@ retry with the **same** key. A concurrent duplicate gets `409 api_error` — wai
 ## Retrieve and poll
 
 ```bash
-curl https://api.fluveo.dev/v1/refunds/re_3R9k8AzB2xQRH9Jf -u sk_test_example:
+curl https://api.devfluveo.com/v1/refunds/re_3R9k8AzB2xQRH9Jf -u sk_test_example:
 ```
 
 No webhooks exist: if a refund is `pending`, poll this endpoint with backoff until terminal.
@@ -101,7 +101,7 @@ No webhooks exist: if a refund is `pending`, poll this endpoint with backoff unt
 Only `metadata` is updatable. Merge semantics: supplied keys merge, an empty `metadata[key]=` deletes the key.
 
 ```bash
-curl https://api.fluveo.dev/v1/refunds/re_3R9k8AzB2xQRH9Jf \
+curl https://api.devfluveo.com/v1/refunds/re_3R9k8AzB2xQRH9Jf \
   -u sk_test_example: -H "Idempotency-Key: refund-meta-1" \
   --data-urlencode "metadata[ticket]=sup_5521"
 ```
@@ -113,7 +113,7 @@ Query params: `limit` (1–100), `starting_after`, `ending_before` **only**. Str
 that may lag a just-created refund by a few seconds.
 
 ```bash
-curl -G https://api.fluveo.dev/v1/refunds -u sk_test_example: -d limit=50 -d starting_after=re_3R9k8AzB2xQRH9Jf
+curl -G https://api.devfluveo.com/v1/refunds -u sk_test_example: -d limit=50 -d starting_after=re_3R9k8AzB2xQRH9Jf
 ```
 
 ```json
@@ -128,10 +128,12 @@ To find refunds for one payment, filter client-side on `payment_intent`.
 ## Node and Python
 
 ```js
-const res = await fetch("https://api.fluveo.dev/v1/refunds", {
+const BASE = process.env.FLUVEO_API_BASE ?? "https://api.devfluveo.com";
+const res = await fetch(`${BASE}/v1/refunds`, {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.FLUVEO_API_KEY}`,
+    "User-Agent": "myshop/1.0",
     "Content-Type": "application/x-www-form-urlencoded",
     "Idempotency-Key": `order-9001-refund-1`,
   },
@@ -143,10 +145,11 @@ if (!res.ok) throw new Error(`${refund.error.type}: ${refund.error.message}`);
 
 ```python
 import os, requests
+BASE = os.environ.get("FLUVEO_API_BASE", "https://api.devfluveo.com")
 r = requests.post(
-    "https://api.fluveo.dev/v1/refunds",
+    f"{BASE}/v1/refunds",
     auth=(os.environ["FLUVEO_API_KEY"], ""),
-    headers={"Idempotency-Key": "order-9001-refund-1"},
+    headers={"User-Agent": "myshop/1.0", "Idempotency-Key": "order-9001-refund-1"},
     data={"payment_intent": "pi_1A9e8AzB2xQRH9JfQu5N", "amount": 2000, "reason": "requested_by_customer"},
 )
 refund = r.json()

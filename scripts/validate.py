@@ -20,7 +20,8 @@ import tempfile
 ID_PREFIXES = ("pi", "cus", "cs", "re", "ch", "plink", "seti", "prod", "price", "in", "sub", "txn", "ii", "pm", "li", "bt", "evt", "we")
 # Matches `GET /v1/x`, and table rows like | `GET` | `/v1/x` | (backticks/pipes/whitespace between method and path).
 METHOD_PATH_RE = re.compile(r"\b(GET|POST|PUT|DELETE)`?[\s|`]*(/v1/[^\s`|)\]\"',>]+)")
-URL_PATH_RE = re.compile(r"(?:api\.fluveo\.dev|localhost:8080)(/v1/[^\s`|)\]\"',>]+)")
+URL_PATH_RE = re.compile(r"(?:api\.devfluveo\.com|api\.fluveo\.dev|localhost:8080)(/v1/[^\s`|)\]\"',>]+)")
+STALE_HOST = "api.fluveo.dev"
 EXPLICIT_METHOD_RE = re.compile(r"-X\s+(GET|POST|PUT|DELETE)")
 SECRET_RE = re.compile(r"sk_(?:test|live)_[A-Za-z0-9]{8,}")
 WHSEC_RE = re.compile(r"whsec_[A-Za-z0-9]{8,}")
@@ -249,6 +250,18 @@ def check_plugin(root, rep):
     rep.ok(5, f"plugin.json ok ({data.get('name')} {data.get('version')})")
 
 
+def check_stale_host(root, rep):
+    hits = 0
+    for md in skill_md_files(root):
+        with open(md, encoding="utf-8") as fh:
+            for lineno, line in enumerate(fh, 1):
+                if STALE_HOST in line:
+                    hits += 1
+                    rep.fail(6, f"{md}:{lineno}", f"stale host {STALE_HOST!r}; use api.devfluveo.com")
+    if not hits:
+        rep.ok(6, f"no stale host {STALE_HOST!r} in skills/**/*.md")
+
+
 def run(root):
     rep = Report()
     check_frontmatter(root, rep)
@@ -256,6 +269,7 @@ def run(root):
     check_endpoints(root, rep)
     check_secrets(root, rep)
     check_plugin(root, rep)
+    check_stale_host(root, rep)
     return rep
 
 
@@ -292,11 +306,13 @@ def self_test():
         got_unknown = any(c == 3 and "not in spec" in m for c, _w, m in rep.failures)
         got_na_conflict = any(c == 3 and "IS in the spec" in m for c, _w, m in rep.failures)
         got_key = any(c == 4 for c, _w, _m in rep.failures)
+        got_stale = any(c == 6 for c, _w, _m in rep.failures)
         print_report(rep)
         assert got_link, "self-test: bad link not caught"
         assert got_unknown, "self-test: unknown endpoint not caught"
         assert got_na_conflict, "self-test: not-available conflict not caught"
         assert got_key, "self-test: fake key not caught"
+        assert got_stale, "self-test: stale host not caught"
         unknown_paths = {m for c, _w, m in rep.failures if c == 3 and "not in spec" in m}
         assert not any("GET /v1/payment_intents/{x} not" in m for m in unknown_paths), "self-test: id normalisation failed"
         assert any("/v1/disputes" in m for m in unknown_paths), "self-test: URL-form endpoint not caught"

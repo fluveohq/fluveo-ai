@@ -6,13 +6,24 @@ Contents: [Base URL and mode](#base-url-and-mode) · [Two auth schemes](#two-aut
 
 | | Value |
 |---|---|
-| Production API | `https://api.fluveo.dev` |
+| API (current environment) | `https://api.devfluveo.com` |
+| Dashboard | `https://dashboard.devfluveo.com` |
 | Local development | `http://localhost:8080` |
 | Key namespace issued today | `sk_test_*` only |
+
+Read the base URL from an env var (`FLUVEO_API_BASE`, default `https://api.devfluveo.com`) so it can change
+per environment. The older `api.` host on `fluveo.dev` referenced in upstream docs does **not** resolve today.
 
 Test mode is selected **by the key**, not by a sandbox hostname. Fluveo does not issue `sk_live_*`,
 publishable (`pk_*`) or restricted (`rk_*`) keys. An `sk_live_*`-shaped value is rejected before parsing.
 Do not invent key prefixes.
+
+## Getting a key
+
+1. Sign up at `https://dashboard.devfluveo.com/signup` (no email verification).
+2. Create a merchant: business name + region (US → `usd`).
+3. The dashboard shows the `sk_test_*` key **once** — store it in a secret manager or `.env` as `FLUVEO_API_KEY`.
+4. Verify: `curl "$FLUVEO_API_BASE/v1/balance" -u "$FLUVEO_API_KEY:" -H "User-Agent: myshop/1.0"` → `200`.
 
 ## Two auth schemes
 
@@ -31,6 +42,8 @@ Send:
 - `Content-Type: application/x-www-form-urlencoded` on POST/PUT bodies (curl `-d` sets it for you).
 - `Idempotency-Key: <your-unique-string>` on writes (1–255 bytes). See `errors-and-retries.md`.
 - `Stripe-Version: 2026-05-27.dahlia` — optional; see below.
+- `User-Agent: <your-app>/<version>` — always. The edge (Cloudflare) rejects Python-urllib's default UA with a
+  plain-text `403 error code: 1010`, not the JSON error envelope. `python-requests`, curl and Node fetch pass.
 
 Never send (each is rejected with a Stripe-shaped `400`, or `401` if sent alone):
 
@@ -54,17 +67,18 @@ Responses echo `Stripe-Version`.
 
 ```bash
 # Basic
-curl https://api.fluveo.dev/v1/balance -u sk_test_example:
+curl https://api.devfluveo.com/v1/balance -u sk_test_example: -H "User-Agent: myshop/1.0"
 
 # Bearer
-curl https://api.fluveo.dev/v1/balance -H "Authorization: Bearer sk_test_example"
+curl https://api.devfluveo.com/v1/balance -H "Authorization: Bearer sk_test_example" -H "User-Agent: myshop/1.0"
 ```
 
 ```js
 // Node 18+ (fetch). Key from the environment, never hard-coded.
 const key = process.env.FLUVEO_API_KEY;
-const res = await fetch("https://api.fluveo.dev/v1/balance", {
-  headers: { Authorization: `Bearer ${key}` },
+const BASE = process.env.FLUVEO_API_BASE ?? "https://api.devfluveo.com";
+const res = await fetch(`${BASE}/v1/balance`, {
+  headers: { Authorization: `Bearer ${key}`, "User-Agent": "myshop/1.0" },
 });
 const body = await res.json();
 if (!res.ok) throw new Error(`${body.error.type}: ${body.error.message}`);
@@ -73,7 +87,8 @@ if (!res.ok) throw new Error(`${body.error.type}: ${body.error.message}`);
 ```python
 import os, requests
 key = os.environ["FLUVEO_API_KEY"]
-r = requests.get("https://api.fluveo.dev/v1/balance", auth=(key, ""))
+BASE = os.environ.get("FLUVEO_API_BASE", "https://api.devfluveo.com")
+r = requests.get(f"{BASE}/v1/balance", auth=(key, ""), headers={"User-Agent": "myshop/1.0"})
 body = r.json()
 if not r.ok:
     raise RuntimeError(f"{body['error']['type']}: {body['error']['message']}")

@@ -15,7 +15,7 @@ Read-only; no `Idempotency-Key` needed. Money truth is the ledger, not the Payme
 ## Balance
 
 ```bash
-curl https://api.fluveo.dev/v1/balance -u sk_test_example:
+curl https://api.devfluveo.com/v1/balance -u sk_test_example:
 ```
 
 ```json
@@ -40,9 +40,9 @@ source id, e.g. `ch_...`), `expand[]`. **Not** supported (→ `400`): `created[g
 `payout`. An unknown `source` is a `400`, never an empty list.
 
 ```bash
-curl -G https://api.fluveo.dev/v1/balance_transactions -u sk_test_example: -d limit=5
-curl -G https://api.fluveo.dev/v1/balance_transactions -u sk_test_example: -d source=ch_3R9k8AzB2xQRH9Jf
-curl https://api.fluveo.dev/v1/balance_transactions/txn_R9k8AzB2xQRH9Jf -u sk_test_example:
+curl -G https://api.devfluveo.com/v1/balance_transactions -u sk_test_example: -d limit=5
+curl -G https://api.devfluveo.com/v1/balance_transactions -u sk_test_example: -d source=ch_3R9k8AzB2xQRH9Jf
+curl https://api.devfluveo.com/v1/balance_transactions/txn_R9k8AzB2xQRH9Jf -u sk_test_example:
 ```
 
 ```json
@@ -68,17 +68,18 @@ empty). Never send both cursors. Cursors are merchant-scoped; a foreign/unknown 
 
 ```bash
 # curl: repeat until has_more is false
-curl -G https://api.fluveo.dev/v1/balance_transactions -u sk_test_example: -d limit=100 -d starting_after=txn_R9k8AzB2xQRH9Jf
+curl -G https://api.devfluveo.com/v1/balance_transactions -u sk_test_example: -d limit=100 -d starting_after=txn_R9k8AzB2xQRH9Jf
 ```
 
 ```js
 async function* balanceTransactions(limit = 100) {
-  const headers = { Authorization: `Bearer ${process.env.FLUVEO_API_KEY}` };
+  const BASE = process.env.FLUVEO_API_BASE ?? "https://api.devfluveo.com";
+  const headers = { Authorization: `Bearer ${process.env.FLUVEO_API_KEY}`, "User-Agent": "myshop/1.0" };
   let startingAfter;
   for (;;) {
     const qs = new URLSearchParams({ limit: String(limit) });
     if (startingAfter) qs.set("starting_after", startingAfter);
-    const res = await fetch(`https://api.fluveo.dev/v1/balance_transactions?${qs}`, { headers });
+    const res = await fetch(`${BASE}/v1/balance_transactions?${qs}`, { headers });
     const page = await res.json();
     if (!res.ok) throw new Error(`${page.error.type}: ${page.error.message}`);
     for (const txn of page.data) yield txn;
@@ -92,11 +93,13 @@ for await (const txn of balanceTransactions()) console.log(txn.id, txn.type, txn
 ```python
 import os, requests
 AUTH = (os.environ["FLUVEO_API_KEY"], "")
+BASE = os.environ.get("FLUVEO_API_BASE", "https://api.devfluveo.com")
+UA = {"User-Agent": "myshop/1.0"}
 
 def balance_transactions(limit=100):
     params = {"limit": limit}
     while True:
-        r = requests.get("https://api.fluveo.dev/v1/balance_transactions", auth=AUTH, params=params)
+        r = requests.get(f"{BASE}/v1/balance_transactions", auth=AUTH, params=params, headers=UA)
         page = r.json()
         if not r.ok:
             raise RuntimeError(page["error"])

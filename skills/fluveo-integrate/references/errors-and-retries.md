@@ -53,6 +53,7 @@ Also: `400 invalid_stripe_version` for a bad `Stripe-Version` header.
 | 400 | `invalid_due_date` | Invoice `due_date` without `collection_method=send_invoice`. |
 | 400 | `idempotency_error` | Key/body mismatch. |
 | 400 | `invalid_stripe_version` | Unsupported/repeated `Stripe-Version`. |
+| 400 | `invalid_request_error`, message `This account is not enabled for payments yet.` | Merchant's financial binding is not active. Test mode: must never happen for a fresh merchant (server bug being fixed). Live mode: dashboard "Set up payments" flow incomplete. Complete dashboard onboarding / contact support; do **not** retry in a loop. |
 | 402 | `card_declined` (+`decline_code`), `expired_card`, `incorrect_cvc` | Card problems. |
 | 403 | `authentication_required` | 3DS required without `return_url`. |
 | 404 | `resource_missing` | Unknown object. |
@@ -60,6 +61,13 @@ Also: `400 invalid_stripe_version` for a bad `Stripe-Version` header.
 | 429 | `rate_limit_error` | Back off. |
 | 500 | `api_error` | Retry same key. |
 | 503 | `ledger_unavailable` | Retry with backoff. |
+
+## Non-JSON responses from the edge
+
+Cloudflare sits in front of the API and returns a plain-text `403 error code: 1010` (not the JSON envelope) for
+requests whose `User-Agent` is `Python-urllib/*`; `python-requests`, curl and Node fetch pass. Never assume an
+error body parses as JSON: on a non-JSON 4xx, log the status and the first 200 bytes of the body. Fix: always
+send an explicit `User-Agent: <your-app>/<version>`.
 
 ## Idempotency journal
 
@@ -128,7 +136,7 @@ Never show `message` verbatim, never show `client_secret`, keys, or ids beyond y
 ```python
 import os, time, random, requests
 
-BASE = "https://api.fluveo.dev"
+BASE = os.environ.get("FLUVEO_API_BASE", "https://api.devfluveo.com")
 AUTH = (os.environ["FLUVEO_API_KEY"], "")
 
 class FluveoError(Exception):
@@ -137,7 +145,7 @@ class FluveoError(Exception):
         self.status, self.type, self.code, self.param = status, err.get("type"), err.get("code"), err.get("param")
 
 def request(method, path, data=None, params=None, idempotency_key=None, max_tries=6):
-    headers = {"Stripe-Version": "2026-05-27.dahlia"}
+    headers = {"Stripe-Version": "2026-05-27.dahlia", "User-Agent": "myshop/1.0"}
     if idempotency_key:
         headers["Idempotency-Key"] = idempotency_key
     delay = 1.0
@@ -150,7 +158,10 @@ def request(method, path, data=None, params=None, idempotency_key=None, max_trie
             time.sleep(delay + random.random()); delay = min(delay * 2, 30); continue
         if r.ok:
             return r.json()
-        err = r.json().get("error", {})
+        try:
+            err = r.json().get("error", {})
+        except ValueError:  # non-JSON body from the edge (e.g. Cloudflare 403 1010)
+            err = {"type": "edge_error", "message": r.text[:200]}
         retry_after = float(r.headers.get("Retry-After", 0) or 0)
         if r.status_code in (409, 429) or r.status_code >= 500:
             if attempt == max_tries:
@@ -161,10 +172,11 @@ def request(method, path, data=None, params=None, idempotency_key=None, max_trie
 
 ```js
 // Node 18+ equivalent
-const BASE = "https://api.fluveo.dev";
+const BASE = process.env.FLUVEO_API_BASE ?? "https://api.devfluveo.com";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 export async function fluveo(method, path, { form, idempotencyKey, maxTries = 6 } = {}) {
-  const headers = { Authorization: `Bearer ${process.env.FLUVEO_API_KEY}`, "Stripe-Version": "2026-05-27.dahlia" };
+  const headers = { Authorization: `Bearer ${process.env.FLUVEO_API_KEY}`, "Stripe-Version": "2026-05-27.dahlia",
+                    "User-Agent": "myshop/1.0" };
   if (form) headers["Content-Type"] = "application/x-www-form-urlencoded";
   if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   let delay = 1000;
@@ -176,7 +188,9 @@ export async function fluveo(method, path, { form, idempotencyKey, maxTries = 6 
       if (attempt >= maxTries || !idempotencyKey) throw e;
       await sleep(delay + Math.random() * 500); delay = Math.min(delay * 2, 30000); continue;
     }
-    const body = await res.json();
+    const text = await res.text();
+    let body;
+    try { body = JSON.parse(text); } catch { body = { error: { type: "edge_error", message: text.slice(0, 200) } }; }
     if (res.ok) return body;
     const retryAfter = Number(res.headers.get("Retry-After") || 0) * 1000;
     if ((res.status === 409 || res.status === 429 || res.status >= 500) && attempt < maxTries) {

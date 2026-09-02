@@ -44,10 +44,10 @@ Body: `name` (required), `description`, `metadata[key]`. Declared response field
 `name`, `description`, `active`.
 
 ```bash
-curl https://api.fluveo.dev/v1/products -u sk_test_example: -H "Idempotency-Key: prod-pro-plan" \
+curl https://api.devfluveo.com/v1/products -u sk_test_example: -H "Idempotency-Key: prod-pro-plan" \
   --data-urlencode "name=Pro Plan" --data-urlencode "description=Monthly Pro subscription"
-curl https://api.fluveo.dev/v1/products/prod_N5xG3aBcDeFgHi -u sk_test_example:
-curl -G https://api.fluveo.dev/v1/products -u sk_test_example: -d limit=20
+curl https://api.devfluveo.com/v1/products/prod_N5xG3aBcDeFgHi -u sk_test_example:
+curl -G https://api.devfluveo.com/v1/products -u sk_test_example: -d limit=20
 ```
 
 ```json
@@ -62,11 +62,11 @@ Body: `product` (required), `currency` (required, lowercase), `unit_amount` (req
 `unit_amount`, `active`, `recurring`.
 
 ```bash
-curl https://api.fluveo.dev/v1/prices -u sk_test_example: -H "Idempotency-Key: price-pro-monthly" \
+curl https://api.devfluveo.com/v1/prices -u sk_test_example: -H "Idempotency-Key: price-pro-monthly" \
   -d product=prod_N5xG3aBcDeFgHi -d currency=usd -d unit_amount=2900 \
   -d "recurring[interval]=month" -d "recurring[interval_count]=1"
-curl https://api.fluveo.dev/v1/prices/price_1N5xH2aBcDeFgHiJ -u sk_test_example:
-curl -G https://api.fluveo.dev/v1/prices -u sk_test_example: -d limit=20
+curl https://api.devfluveo.com/v1/prices/price_1N5xH2aBcDeFgHiJ -u sk_test_example:
+curl -G https://api.devfluveo.com/v1/prices -u sk_test_example: -d limit=20
 ```
 
 ```json
@@ -81,7 +81,7 @@ A pending item (no invoice yet) is swept into the customer's next invoice at cre
 `id` (`ii_...`), `object`, `customer`.
 
 ```bash
-curl https://api.fluveo.dev/v1/invoiceitems -u sk_test_example: -H "Idempotency-Key: ii-order-77-1" \
+curl https://api.devfluveo.com/v1/invoiceitems -u sk_test_example: -H "Idempotency-Key: ii-order-77-1" \
   -d customer=cus_9R8e8AzB2xQRH9Jf -d amount=1500 --data-urlencode "description=Setup fee"
 ```
 
@@ -105,15 +105,15 @@ Declared response fields: `id` (`in_...`), `object`, `customer`, `status` (`draf
 
 ```bash
 # 1. draft (sweeps the customer's pending invoice items)
-curl https://api.fluveo.dev/v1/invoices -u sk_test_example: -H "Idempotency-Key: inv-order-77" \
+curl https://api.devfluveo.com/v1/invoices -u sk_test_example: -H "Idempotency-Key: inv-order-77" \
   -d customer=cus_9R8e8AzB2xQRH9Jf -d collection_method=send_invoice -d due_date=1772000000 \
   --data-urlencode "description=Order 77"
 # 2. finalize -> status open, number assigned
-curl -X POST https://api.fluveo.dev/v1/invoices/in_1N5xK6aBcDeFgHiL/finalize -u sk_test_example: \
+curl -X POST https://api.devfluveo.com/v1/invoices/in_1N5xK6aBcDeFgHiL/finalize -u sk_test_example: \
   -H "Idempotency-Key: inv-order-77-finalize"
 # 3. read
-curl https://api.fluveo.dev/v1/invoices/in_1N5xK6aBcDeFgHiL -u sk_test_example:
-curl -G https://api.fluveo.dev/v1/invoices -u sk_test_example: -d limit=20
+curl https://api.devfluveo.com/v1/invoices/in_1N5xK6aBcDeFgHiL -u sk_test_example:
+curl -G https://api.devfluveo.com/v1/invoices -u sk_test_example: -d limit=20
 ```
 
 Create response (abbreviated):
@@ -132,14 +132,14 @@ Track payment by polling `GET /v1/invoices/{invoice}` until `status == "paid"` (
 ## Hosted invoice URL
 
 ```bash
-curl https://api.fluveo.dev/v1/invoices/in_1N5xK6aBcDeFgHiL/hosted_invoice_url -u sk_test_example:
+curl https://api.devfluveo.com/v1/invoices/in_1N5xK6aBcDeFgHiL/hosted_invoice_url -u sk_test_example:
 ```
 
 ```json
 { "invoice": "in_1N5xK6aBcDeFgHiL", "hosted_invoice_url": "/i/opaque-signed-token" }
 ```
 
-`hosted_invoice_url` is **site-relative to the API origin** (prefix `https://api.fluveo.dev`). It carries no
+`hosted_invoice_url` is **site-relative to the API origin** (prefix `https://api.devfluveo.com`). It carries no
 secrets; send it to the customer.
 
 ## Subscriptions
@@ -156,11 +156,11 @@ Declared response: `id` (`sub_...`), `object`, `customer`, `status` (`incomplete
 `subscription_item` with `price`, `quantity`).
 
 ```bash
-curl https://api.fluveo.dev/v1/subscriptions -u sk_test_example: -H "Idempotency-Key: sub-user-501-pro" \
+curl https://api.devfluveo.com/v1/subscriptions -u sk_test_example: -H "Idempotency-Key: sub-user-501-pro" \
   -d customer=cus_9R8e8AzB2xQRH9Jf -d "items[0][price]=price_1N5xH2aBcDeFgHiJ" -d "items[0][quantity]=1" \
   -d payment_behavior=default_incomplete
-curl https://api.fluveo.dev/v1/subscriptions/sub_1N5xM8aBcDeFgHiN -u sk_test_example:
-curl -G https://api.fluveo.dev/v1/subscriptions -u sk_test_example: -d limit=20
+curl https://api.devfluveo.com/v1/subscriptions/sub_1N5xM8aBcDeFgHiN -u sk_test_example:
+curl -G https://api.devfluveo.com/v1/subscriptions -u sk_test_example: -d limit=20
 ```
 
 ```json
@@ -184,19 +184,19 @@ Fluveo support; do not call `POST /v1/subscriptions/{subscription}/cancel` or `D
 
 ```js
 const H = { Authorization: `Bearer ${process.env.FLUVEO_API_KEY}`, "Content-Type": "application/x-www-form-urlencoded" };
-const post = (path, form, key) => fetch("https://api.fluveo.dev" + path, { method: "POST",
+const post = (path, form, key) => fetch("https://api.devfluveo.com" + path, { method: "POST",
   headers: { ...H, "Idempotency-Key": key }, body: new URLSearchParams(form) }).then(r => r.json());
 
 const product = await post("/v1/products", { name: "Pro Plan" }, "prod-pro-plan");
 const price = await post("/v1/prices", { product: product.id, currency: "usd", unit_amount: "2900", "recurring[interval]": "month" }, "price-pro-monthly");
 const sub = await post("/v1/subscriptions", { customer: "cus_9R8e8AzB2xQRH9Jf", "items[0][price]": price.id }, "sub-user-501-pro");
-const hosted = await (await fetch(`https://api.fluveo.dev/v1/invoices/${sub.latest_invoice}/hosted_invoice_url`, { headers: H })).json();
-const payUrl = "https://api.fluveo.dev" + hosted.hosted_invoice_url;
+const hosted = await (await fetch(`https://api.devfluveo.com/v1/invoices/${sub.latest_invoice}/hosted_invoice_url`, { headers: H })).json();
+const payUrl = "https://api.devfluveo.com" + hosted.hosted_invoice_url;
 ```
 
 ```python
 import os, requests
-AUTH = (os.environ["FLUVEO_API_KEY"], ""); BASE = "https://api.fluveo.dev"
+AUTH = (os.environ["FLUVEO_API_KEY"], ""); BASE = "https://api.devfluveo.com"
 def post(path, data, key): return requests.post(BASE + path, auth=AUTH, data=data, headers={"Idempotency-Key": key}).json()
 
 item = post("/v1/invoiceitems", {"customer": "cus_9R8e8AzB2xQRH9Jf", "amount": 1500, "description": "Setup fee"}, "ii-order-77-1")

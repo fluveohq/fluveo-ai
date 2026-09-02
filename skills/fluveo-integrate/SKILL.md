@@ -1,6 +1,6 @@
 ---
 name: fluveo-integrate
-description: Integrate a merchant's software with the Fluveo payments API over raw HTTP (no SDK). Use whenever the user wants to accept payments, charge a card, take a payment, create a payment intent, confirm or capture a payment, authorize now and capture later, refund a payment (full or partial), build a checkout, use hosted checkout or Checkout Sessions, create a payment link, save a customer or card, list charges, check balance or balance transactions, create products, prices, invoices or subscriptions, migrate from Stripe to Fluveo, or mentions Fluveo, api.fluveo.dev, sk_test keys, Stripe-compatible payments, PaymentIntent, refund, checkout session, or payment link. Also use when handling Fluveo API errors, idempotency keys, retries, 3DS / requires_action, or asking what Fluveo does or does not support.
+description: Integrate a merchant's software with the Fluveo payments API over raw HTTP (no SDK). Use whenever the user wants to accept payments, charge a card, take a payment, create a payment intent, confirm or capture a payment, authorize now and capture later, refund a payment (full or partial), build a checkout, use hosted checkout or Checkout Sessions, create a payment link, save a customer or card, list charges, check balance or balance transactions, create products, prices, invoices or subscriptions, migrate from Stripe to Fluveo, or mentions Fluveo, api.devfluveo.com, sk_test keys, Stripe-compatible payments, PaymentIntent, refund, checkout session, or payment link. Also use when handling Fluveo API errors, idempotency keys, retries, 3DS / requires_action, or asking what Fluveo does or does not support.
 ---
 
 # Fluveo integration (raw HTTP, no SDK)
@@ -12,7 +12,8 @@ Only the 57 operations in `spec/openapi.subset.json` (plugin root) are contracte
 ## Wire format (memorise this block)
 
 ```
-Base URL      https://api.fluveo.dev            (local dev: http://localhost:8080)
+Base URL      read from env FLUVEO_API_BASE. Today: https://api.devfluveo.com   (local dev: http://localhost:8080)
+Dashboard     https://dashboard.devfluveo.com  — sign up, create a merchant, copy the sk_test_ key (shown once)
 Auth          HTTP Basic  -u sk_test_example:   (key as username, EMPTY password, keep the colon)
           or  Authorization: Bearer sk_test_example
 Keys          only sk_test_* exist today. No sk_live_*, no pk_*, no rk_*. Mode comes from the key, not the host.
@@ -23,6 +24,7 @@ Stripe-Version  omit it, or send exactly 2026-05-27.dahlia. Anything else -> 400
 Idempotency-Key send on every write; reuse the SAME key when retrying a 5xx/timeout (see errors-and-retries.md)
 Amounts       integers in the smallest currency unit (4242 = $42.42); currency is lowercase ISO 4217
 Test card     4242424242424242, exp 12/2030, cvc 123 — test mode only, inline via payment_method_data[card][...]
+User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib's default with a non-JSON 403
 ```
 
 ## Routing table — what are you building?
@@ -65,6 +67,10 @@ Test card     4242424242424242, exp 12/2030, cvc 123 — test mode only, inline 
 10. Prefer raw HTTP (`curl`, `fetch`, `requests`). stripe-node / stripe-python can be pointed at
     Fluveo as an alternative (see `references/migrate-from-stripe.md`), but never rely on SDK method presence
     as proof that an endpoint exists.
+11. **Treat every id as an opaque string**; check only the prefix (`pi_`, `cs_`, `re_`, ...), never the length
+    or alphabet.
+12. **Redirect the browser to the `url` field returned by the API**; never build hosted-page URLs by hand — the
+    hosted host differs from the API host.
 
 ## What does NOT exist (do not use, do not document as available)
 
@@ -84,7 +90,7 @@ Full list with workarounds in `references/not-available.md`. Highlights:
 
 ```bash
 # 1. create + confirm in one call (test card, automatic capture)
-curl https://api.fluveo.dev/v1/payment_intents -u sk_test_example: \
+curl https://api.devfluveo.com/v1/payment_intents -u sk_test_example: \
   -H "Idempotency-Key: order-9001-charge" \
   -d amount=4242 -d currency=usd -d confirm=true \
   -d "payment_method_data[type]=card" \
@@ -94,9 +100,9 @@ curl https://api.fluveo.dev/v1/payment_intents -u sk_test_example: \
   -d "payment_method_data[card][cvc]=123" \
   --data-urlencode "metadata[order_id]=ord_9001"
 # 2. read status until terminal
-curl https://api.fluveo.dev/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N -u sk_test_example:
+curl https://api.devfluveo.com/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N -u sk_test_example:
 # 3. refund if needed
-curl https://api.fluveo.dev/v1/refunds -u sk_test_example: \
+curl https://api.devfluveo.com/v1/refunds -u sk_test_example: \
   -H "Idempotency-Key: order-9001-refund-1" -d payment_intent=pi_1A9e8AzB2xQRH9JfQu5N -d amount=2000
 ```
 

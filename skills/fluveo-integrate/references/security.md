@@ -56,7 +56,8 @@ return it as `null` on purpose. Idempotent replay bodies can contain it — do n
 
 ## Transport and headers
 
-- Always `https://api.fluveo.dev`; `http://localhost:8080` only for local dev.
+- Use the configured `FLUVEO_API_BASE` (today `https://api.devfluveo.com`) over HTTPS; `http://localhost:8080` only for local dev.
+- Send an explicit `User-Agent: <your-app>/<version>`; the edge rejects Python-urllib's default with a non-JSON `403`.
 - Send exactly one credential. Do not add `api-key`, `Stripe-Account`, connected-account or processor headers.
 - `Idempotency-Key` values are not secret but should be unguessable enough that another system in your org
   cannot collide with them (prefix with the service/operation name).
