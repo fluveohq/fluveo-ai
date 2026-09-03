@@ -6,7 +6,7 @@
     "name": "Fluveo"
   },
   "homepage": "https://api.fluveo.dev",
-  "repository": "https://github.com/leanrails-inc/fluveo-ai",
+  "repository": "https://github.com/fluveohq/fluveo-ai",
   "license": "MIT",
   "keywords": [
     "fluveo",

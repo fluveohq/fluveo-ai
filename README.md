@@ -14,7 +14,7 @@ in the skills is validated against it.
 **Claude Code (plugin)**
 
 ```bash
-claude plugin add https://github.com/leanrails-inc/fluveo-ai
+claude plugin add https://github.com/fluveohq/fluveo-ai
 # or from a local checkout:
 claude plugin add /path/to/fluveo-ai
 ```
@@ -22,9 +22,9 @@ claude plugin add /path/to/fluveo-ai
 **`npx skills add` (Claude Code, Codex, Cursor, others)**
 
 ```bash
-npx skills add leanrails-inc/fluveo-ai
+npx skills add fluveohq/fluveo-ai
 # single skill:
-npx skills add leanrails-inc/fluveo-ai --skill fluveo-integrate
+npx skills add fluveohq/fluveo-ai --skill fluveo-integrate
 ```
 
 **Codex** — copy `skills/fluveo-integrate` and `skills/fluveo-docs` into `~/.codex/skills/` (or your
@@ -36,7 +36,7 @@ or reference `skills/fluveo-integrate/SKILL.md` from a Cursor rule.
 **Manual (any agent)**
 
 ```bash
-git clone https://github.com/leanrails-inc/fluveo-ai
+git clone https://github.com/fluveohq/fluveo-ai
 # point your agent at fluveo-ai/skills/fluveo-integrate/SKILL.md
 ```
 
