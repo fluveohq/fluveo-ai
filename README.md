@@ -128,6 +128,10 @@ the docs win for behaviour. Disagreements found while writing the skills:
   `created`, `created[gt|gte|lt|lte]` on `GET /v1/checkout/sessions` only. The skill allows them only there.
 - **`expand[]`.** Declared only on `GET /v1/balance_transactions`; docs mention `expand[]=payment_intent` on
   Checkout Session retrieve. The skill does not advertise `expand[]` on sessions.
+- **Dashboard sign-up routes are undocumented upstream.** `POST /api/auth/signup` and `POST /api/merchants` were
+  verified live (2026-09-03) and are described in `references/authentication.md` as dashboard-internal, not `/v1`.
+- **`GET /v1/balance_transactions` on dev** returned `503 ledger_unavailable` for fresh test merchants on
+  2026-09-03 while `GET /v1/balance` worked; documented as retryable, tracked as an API issue.
 - **Fluveo Elements.** `sdks/elements/README.md` uses `pk_test_...`; the API docs say publishable keys are not
   issued. The skill describes Elements only and tells agents not to build on it yet.
 - **`Retry-After` on 409.** The idempotent-retries cookbook says a `409 idempotency_error` carries

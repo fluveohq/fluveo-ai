@@ -24,14 +24,16 @@ curl https://api.devfluveo.com/v1/balance -u sk_test_example:
   "livemode": false,
   "available": [ { "amount": 423800, "currency": "usd", "source_types": { "card": 423800 } } ],
   "pending":   [ { "amount": 12450,  "currency": "usd", "source_types": { "card": 12450 } } ],
-  "instant_available": [],
-  "connect_reserved": []
+  "instant_available": []
 }
 ```
 
 `available` may be negative (refunds/chargebacks/fees exceeding funds). `pending` = captured, not yet
-promoted to available. `instant_available` / `connect_reserved` are always empty (no Instant Payouts, no Connect).
-Amounts are minor units.
+promoted to available. `instant_available` is empty and `connect_reserved` is **absent or empty** (no Instant
+Payouts, no Connect) — never rely on either. Read every field defensively. Amounts are minor units.
+
+On the dev environment `GET /v1/balance_transactions` has been observed returning `503 ledger_unavailable`
+while `GET /v1/balance` works. Treat `503` as retryable with backoff and never block an order flow on it.
 
 ## Balance transactions
 

@@ -25,6 +25,23 @@ Do not invent key prefixes.
 3. The dashboard shows the `sk_test_*` key **once** — store it in a secret manager or `.env` as `FLUVEO_API_KEY`.
 4. Verify: `curl "$FLUVEO_API_BASE/v1/balance" -u "$FLUVEO_API_KEY:" -H "User-Agent: myshop/1.0"` → `200`.
 
+### Scripted sign-up (dashboard-internal routes)
+
+The dashboard exposes the same steps as JSON routes. They are **not** part of the `/v1` contract and may change;
+the UI at `/signup` is the supported path. Keep one cookie jar across both calls and send an `Origin` header.
+
+```bash
+D=https://dashboard.devfluveo.com
+curl -s -c jar -b jar "$D/api/auth/signup" -H "Origin: $D" -H "Content-Type: application/json" -A "Mozilla/5.0" \
+  -d '{"email":"dev@merchant.example","password":"correct-horse-battery","terms_accepted":true}'
+# {"ok":true,"merchant_id":null}
+curl -s -c jar -b jar "$D/api/merchants" -H "Origin: $D" -H "Content-Type: application/json" -A "Mozilla/5.0" \
+  -d '{"display_name":"My Shop","region":"us"}'
+# 201 {"merchant_id":"mch_...","display_name":"My Shop","region":"us","secret_key":"sk_test_example"}
+```
+
+`secret_key` is returned **only** in that `201` response — store it immediately.
+
 ## Two auth schemes
 
 | Scheme | Wire form |

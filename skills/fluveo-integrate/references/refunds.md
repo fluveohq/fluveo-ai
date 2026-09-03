@@ -27,7 +27,8 @@ curl https://api.devfluveo.com/v1/refunds \
   -d reason=requested_by_customer
 ```
 
-Response `200`:
+Response `200` (one possible shape — `failure_reason`, `pending_reason`, `next_action` and `receipt_number` are
+optional and are **omitted**, not `null`, on live responses; read them defensively):
 
 ```json
 {
