@@ -13,7 +13,7 @@ Only the 57 operations in `spec/openapi.subset.json` (plugin root) are contracte
 
 ```
 Base URL      read from env FLUVEO_API_BASE. Today: https://api.devfluveo.com   (local dev: http://localhost:8080)
-Dashboard     https://dashboard.devfluveo.com  — sign up, create a merchant, copy the sk_test_ key (shown once)
+Key           the account OWNER creates the merchant + completes payments onboarding in the dashboard and hands you the sk_test_ key; never script the dashboard
 Auth          HTTP Basic  -u sk_test_example:   (key as username, EMPTY password, keep the colon)
           or  Authorization: Bearer sk_test_example
 Keys          only sk_test_* exist today. No sk_live_*, no pk_*, no rk_*. Mode comes from the key, not the host.
@@ -45,6 +45,9 @@ User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib'
 
 ## Critical rules
 
+0. **Public `/v1` only, no bypasses.** Use only the operations in `spec/openapi.subset.json`. Never call dashboard routes,
+   `/internal/` paths, admin/processor endpoints, or anything that needs a credential other than the merchant `sk_test_` key.
+   Account creation and payments onboarding are done by the account owner in the dashboard, not by you.
 1. **Never invent endpoints, parameters, or response fields.** Unknown params return a named `400` (never ignored).
    Only read response fields declared in `spec/openapi.subset.json`; treat anything else as absent.
 2. **No webhooks.** `/v1/webhook_endpoints` and `/v1/events` are not merchant-public. Poll `GET` on the

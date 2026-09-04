@@ -53,7 +53,7 @@ Also: `400 invalid_stripe_version` for a bad `Stripe-Version` header.
 | 400 | `invalid_due_date` | Invoice `due_date` without `collection_method=send_invoice`. |
 | 400 | `idempotency_error` | Key/body mismatch. |
 | 400 | `invalid_stripe_version` | Unsupported/repeated `Stripe-Version`. |
-| 400 | `invalid_request_error`, message `This account is not enabled for payments yet.` | Merchant's financial binding is not active. Test mode: must never happen for a fresh merchant (server bug being fixed). Live mode: dashboard "Set up payments" flow incomplete. Complete dashboard onboarding / contact support; do **not** retry in a loop. |
+| 400 | `invalid_request_error`, message `This account is not enabled for payments yet.` | The merchant's payments onboarding (Stripe Connect verification, done by the owner in the dashboard) is not approved yet. Stop and tell the account owner; do **not** retry in a loop and do not look for workarounds. |
 | 402 | `card_declined` (+`decline_code`), `expired_card`, `incorrect_cvc` | Card problems. |
 | 403 | `authentication_required` | 3DS required without `return_url`. |
 | 404 | `resource_missing` | Unknown object. |

@@ -20,27 +20,19 @@ Do not invent key prefixes.
 
 ## Getting a key
 
-1. Sign up at `https://dashboard.devfluveo.com/signup` (no email verification).
-2. Create a merchant: business name + region (US → `usd`).
-3. The dashboard shows the `sk_test_*` key **once** — store it in a secret manager or `.env` as `FLUVEO_API_KEY`.
-4. Verify: `curl "$FLUVEO_API_BASE/v1/balance" -u "$FLUVEO_API_KEY:" -H "User-Agent: myshop/1.0"` → `200`.
+Account creation and onboarding are done by a **person** in the Fluveo dashboard (`https://dashboard.devfluveo.com`),
+never by an integration or an agent. This skill only needs the resulting key:
 
-### Scripted sign-up (dashboard-internal routes)
+1. The account owner signs up, creates the merchant (region US → `usd`) and completes the payments onboarding
+   ("Set up US payments" — Stripe Connect verification). A merchant cannot charge before that onboarding is approved.
+2. The dashboard shows the `sk_test_*` key **once**; the owner hands it to you through a secret manager or `.env`
+   (`FLUVEO_API_KEY`). Never ask for dashboard credentials and never script the dashboard.
+3. Verify: `curl "$FLUVEO_API_BASE/v1/balance" -u "$FLUVEO_API_KEY:" -H "User-Agent: myshop/1.0"` → `200`.
+4. If a write returns `400 invalid_request_error` with `This account is not enabled for payments yet.`, the account's
+   onboarding is not approved yet — stop and tell the owner; do not retry in a loop and do not look for workarounds.
 
-The dashboard exposes the same steps as JSON routes. They are **not** part of the `/v1` contract and may change;
-the UI at `/signup` is the supported path. Keep one cookie jar across both calls and send an `Origin` header.
-
-```bash
-D=https://dashboard.devfluveo.com
-curl -s -c jar -b jar "$D/api/auth/signup" -H "Origin: $D" -H "Content-Type: application/json" -A "Mozilla/5.0" \
-  -d '{"email":"dev@merchant.example","password":"correct-horse-battery","terms_accepted":true}'
-# {"ok":true,"merchant_id":null}
-curl -s -c jar -b jar "$D/api/merchants" -H "Origin: $D" -H "Content-Type: application/json" -A "Mozilla/5.0" \
-  -d '{"display_name":"My Shop","region":"us"}'
-# 201 {"merchant_id":"mch_...","display_name":"My Shop","region":"us","secret_key":"sk_test_example"}
-```
-
-`secret_key` is returned **only** in that `201` response — store it immediately.
+Only the public `/v1` API (the operations in `spec/openapi.subset.json`) is available to integrations. Dashboard
+routes and any `/internal/` path are private and blocked for external callers.
 
 ## Two auth schemes
 
