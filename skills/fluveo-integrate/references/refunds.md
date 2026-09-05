@@ -191,12 +191,16 @@ if not r.ok:
 | 409 | `api_error` | Same key executing concurrently; retry later with the same key. |
 | 5xx | `api_error` | Retry with the same key. |
 
-Two refund refusals need specific handling:
+Three refund refusals need specific handling:
 
 - `This account does not have enough available balance to refund this payment.` — no refund was created. Check
   `GET /v1/balance` → `available` and `GET /v1/balance_transactions` → `available_on`; wait for funds or reduce
-  the partial refund to no more than the available amount. In test mode, card `4000 0000 0000 0077` avoids the
+  the partial refund to no more than the available amount, then retry with a **new** `Idempotency-Key`. The first
+  key keeps replaying its original `400`. In test mode, card `4000 0000 0000 0077` avoids the
   several-day pending period of card `4242 4242 4242 4242`.
 - `This account is not enabled for payouts yet.` on a refund immediately after a sale — no refund was created;
-  the platform is still reconciling the account. Wait 2–3 minutes, then retry the unchanged request with the
-  **same** `Idempotency-Key`.
+  the platform is still reconciling the account. Wait 2–3 minutes, then retry the unchanged request with a
+  **new** `Idempotency-Key`. The first `400` is replayed when the same key is reused.
+- `A previous request for this payment is still being resolved. Try again later.` — do not create another refund
+  on that PaymentIntent. Wait for the previous refund to be confirmed and poll `GET /v1/refunds/{id}` until its
+  `status` is terminal. If it does not settle, contact Fluveo support; changing keys does not clear this state.

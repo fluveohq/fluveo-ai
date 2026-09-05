@@ -69,9 +69,14 @@ than a malformed field. Do not treat a missing `param` as a broken error respons
 
 - `This account does not have enough available balance to refund this payment.` — no refund was created. Check
   `GET /v1/balance` → `available` and the charge row's `available_on` in `GET /v1/balance_transactions`. Wait
-  for funds to become available or request a smaller partial refund.
+  for funds to become available or request a smaller partial refund, then retry with a **new** `Idempotency-Key`.
+  The first key keeps replaying its original `400`.
 - `This account is not enabled for payouts yet.` on a refund right after a sale — no refund was created. Wait
-  2–3 minutes for account reconciliation, then resend the unchanged refund with the **same** `Idempotency-Key`.
+  2–3 minutes for account reconciliation, then resend the unchanged refund with a **new** `Idempotency-Key`.
+  Reusing the first key replays its original `400` response.
+- `A previous request for this payment is still being resolved. Try again later.` — do not create another refund
+  on that PaymentIntent. Wait for the previous refund to be confirmed and poll `GET /v1/refunds/{id}` until its
+  `status` is terminal. If it remains unresolved, contact Fluveo support; a new key will not bypass it.
 - `This account is not enabled for payments yet.` — the account owner must finish payments onboarding and be
   approved. Stop and tell the owner; do not retry in a loop or try to bypass approval.
 
@@ -99,7 +104,9 @@ Scope: `(merchant, mode, key)`. Rules:
 - Concurrent duplicate → `409 api_error`, never cached; retry later with the same key.
 - Ambiguous execution (crash mid-way) stays fail-closed: you keep getting `409` until Fluveo reconciles. Do
   **not** start the operation over with a new key while the outcome is ambiguous.
-- Pre-effect validation failures release the key, so a corrected request may reuse it.
+- Validation failures before an operation starts release the key, so a corrected request may reuse it. Refund
+  business-rule refusals happen after refund execution starts and are the exception: their `400` response is stored,
+  no Refund is created, and a later retry after the condition changes must use a new key.
 - Raw card fields are not fingerprinted: same key + different card + same other params replays the first result.
 - After 24 h the key can start a new generation (a replayed create would then make a new object).
 

@@ -26,7 +26,9 @@ never by an integration or an agent. This skill only needs the resulting key:
 1. The account owner signs up, creates the merchant (region US → `usd`) and completes the payments onboarding
    ("Set up US payments" — Stripe Connect verification). A merchant cannot charge before that onboarding is approved.
 2. The dashboard shows the `sk_test_*` key **once**; the owner hands it to you through a secret manager or `.env`
-   (`FLUVEO_API_KEY`). Never ask for dashboard credentials and never script the dashboard.
+   (`FLUVEO_API_KEY`). The examples use `FLUVEO_API_KEY`, but any environment-variable name works; map your
+   existing secret name in your code. The only rule is that the key stays server-side and is never sent to browser code.
+   Never ask for dashboard credentials and never script the dashboard.
 3. Verify: `curl "$FLUVEO_API_BASE/v1/balance" -u "$FLUVEO_API_KEY:" -H "User-Agent: myshop/1.0"` → `200`.
 4. If a write returns `400 invalid_request_error` with `This account is not enabled for payments yet.`, the account's
    onboarding is not approved yet — stop and tell the owner; do not retry in a loop and do not look for workarounds.
@@ -122,7 +124,8 @@ The message never reveals whether the key once existed. Fix the credential; do n
 ## Key lifecycle
 
 - Keys are created/revoked on the dashboard API Keys page. The full value is shown **once**; store it in a
-  secret manager and read it from an environment variable (`FLUVEO_API_KEY`).
+  secret manager and read it from an environment variable. The examples call it `FLUVEO_API_KEY`, but any name
+  works; keep it server-side and never expose it to browser code.
 - Rotate by issuing a replacement, deploying it, then revoking the old key. Revocation takes effect within
   at most five seconds for new requests; in-flight requests are not cancelled.
 - Treat any exposed key as compromised and rotate immediately.

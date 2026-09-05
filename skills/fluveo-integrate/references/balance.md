@@ -64,6 +64,10 @@ curl https://api.devfluveo.com/v1/balance_transactions/txn_R9k8AzB2xQRH9Jf -u sk
 `adjustment`. For a charge, `net = amount − fee − reserve`. `available_on` is ledger availability, not bank
 settlement. Ids may be `txn_...` or `bt_...`.
 
+On the US arm, `balance_transactions[].source` is currently always `null`. Merchants must **not** rely on
+`source` to join balance rows to charges or refunds. Match `created`, `amount`, and `type` with your own order
+records, and use `GET /v1/payment_intents/{id}` or `GET /v1/refunds?payment_intent={id}` for object status.
+
 ## Pagination cookbook
 
 Newest first. Pass the last `id` of a page as `starting_after`; stop when `has_more` is `false` (or `data` is
@@ -125,11 +129,11 @@ Right after a sale, `GET /v1/balance` can lag a few minutes behind `GET /v1/bala
 row is the earliest signal; use its `status` and `available_on`, then expect the aggregate balance to catch up on
 the next refresh. A succeeded PaymentIntent whose charge funds are still pending cannot fund a refund.
 
-1. `GET /v1/payment_intents/{intent}` → `latest_charge` (`ch_...`).
-2. `GET /v1/balance_transactions?source=ch_...` → the `charge` row (`fee`, `net`, `available_on`) and, after a
-   refund, a `refund` row.
-3. `GET /v1/balance` to confirm the aggregate. Refund objects currently carry `balance_transaction: null`, so
-   join via `source` on the charge side.
+1. `GET /v1/payment_intents/{intent}` for the payment status and `latest_charge`.
+2. On the US arm, correlate balance rows by `created`, `amount`, and `type` with your own order records; do not
+   join on `source`, because it is currently `null`.
+3. Use `GET /v1/refunds?payment_intent={intent}` for refund status, then `GET /v1/balance` for the aggregate.
+   Refund objects currently carry `balance_transaction: null`.
 
 ## Errors
 
