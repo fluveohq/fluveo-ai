@@ -36,6 +36,8 @@ workaround.
 | Card entry | Stripe.js / Elements with `pk_` | hosted Checkout / Payment Links; Elements needs a `pk_` that is not issued |
 | Charges | create/capture/update | read-only projection (`latest_charge`) |
 | Refund create | `charge` or `payment_intent` | `payment_intent` only in the contract |
+| Refund funding | Stripe can let the balance go negative | paid only from `available`; pending never counts and Fluveo does not advance refunds |
+| Refund fee | returns the processing fee on refund | processing fee is not returned, so other available funds are needed for a full refund |
 | Refund object | has `livemode` | no `livemode`; `balance_transaction` is `null` |
 | Idempotency | 24 h replay on all writes | 24 h byte-for-byte on 14 journaled ops (incl. stored 5xx); resource-local elsewhere; concurrent duplicate → `409 api_error`; ambiguous execution fail-closed |
 | Idempotency mismatch | `400 idempotency_error` | same |

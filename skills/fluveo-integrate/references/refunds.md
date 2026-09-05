@@ -1,6 +1,6 @@
 # Refunds
 
-Contents: [Endpoints](#endpoints) · [Full refund](#full-refund) · [Partial refund](#partial-refund) · [Refunding by charge](#refunding-by-charge) · [Idempotency](#idempotency) · [Statuses](#statuses) · [Retrieve and poll](#retrieve-and-poll) · [Update metadata](#update-metadata) · [List](#list) · [Node and Python](#node-and-python) · [Errors](#errors)
+Contents: [Endpoints](#endpoints) · [Funding refunds (US)](#funding-refunds-us) · [Full refund](#full-refund) · [Partial refund](#partial-refund) · [Refunding by charge](#refunding-by-charge) · [Idempotency](#idempotency) · [Statuses](#statuses) · [Retrieve and poll](#retrieve-and-poll) · [Update metadata](#update-metadata) · [List](#list) · [Node and Python](#node-and-python) · [Errors](#errors)
 
 ## Endpoints
 
@@ -12,12 +12,31 @@ Contents: [Endpoints](#endpoints) · [Full refund](#full-refund) · [Partial ref
 | `GET` | `/v1/refunds` | — | List |
 
 Refunds apply to a **captured** PaymentIntent (`status: succeeded`). To release an uncaptured authorization use
-`POST /v1/payment_intents/{intent}/cancel` instead (`payments.md`). Fluveo fees are not returned on refund.
+`POST /v1/payment_intents/{intent}/cancel` instead (`payments.md`). A succeeded payment is eligible for a refund,
+but the refund can proceed only when the merchant has enough **available** balance.
 
 Create body fields: `payment_intent` (required, `pi_...`), `amount` (integer minor units; omit for full),
 `reason` (`duplicate` | `fraudulent` | `requested_by_customer`), `metadata[key]`. Anything else → named `400`.
 
+## Funding refunds (US)
+
+For US merchant accounts, a refund is paid from the merchant's **available** balance. Pending funds never count, and Fluveo does not
+advance refunds or let a refund take the available balance below zero. Check `GET /v1/balance` → `available`
+and the charge row's `available_on` in `GET /v1/balance_transactions`. Right after a sale, the transaction list
+can show the new row a few minutes before `GET /v1/balance` catches up.
+
+The Stripe processing fee is deducted from available balance and is not returned on refund. This means a merchant whose
+only sale is the payment being refunded cannot refund 100% of it. For example, a 1500 sale with a 73 fee adds
+only 1427 to available balance, which is less than the 1500 full refund. Test a full refund on a second sale after
+the account already has other available funds, or make a partial refund no greater than the current `available`
+amount.
+
+In test mode, card `4242 4242 4242 4242` creates funds that stay pending for several days. To test refunds
+immediately, use test card `4000 0000 0000 0077`; its funds become available immediately.
+
 ## Full refund
+
+Omit `amount` to refund the full captured amount.
 
 ```bash
 curl https://api.devfluveo.com/v1/refunds \
@@ -55,6 +74,8 @@ Notes: `balance_transaction` is currently always `null` (the refund still appear
 
 ## Partial refund
 
+Set `amount` to the amount to refund in minor units.
+
 ```bash
 curl https://api.devfluveo.com/v1/refunds \
   -u sk_test_example: \
@@ -64,8 +85,9 @@ curl https://api.devfluveo.com/v1/refunds \
   --data-urlencode "metadata[ticket]=sup_5521"
 ```
 
-Multiple partial refunds are allowed up to the captured amount. Use a **different** `Idempotency-Key` per
-distinct refund (e.g. `order-9001-refund-1`, `-2`); reusing the key with a different `amount` returns
+Multiple partial refunds are allowed until the captured amount is fully refunded, subject to the merchant's
+current available balance. Use a **different** `Idempotency-Key` per distinct refund (e.g.
+`order-9001-refund-1`, `-2`); reusing the key with a different `amount` returns
 `400 idempotency_error`, and reusing it with the same body returns the first refund again (no double refund).
 
 ## Refunding by charge
@@ -162,9 +184,19 @@ if not r.ok:
 
 | HTTP | `error.type` / `code` | Cause |
 |---|---|---|
-| 400 | `invalid_request_error` | Missing/invalid param, unsupported field, amount above refundable balance, bad cursor (`param` set). |
+| 400 | `invalid_request_error` | Missing/invalid param, unsupported field, or bad cursor (`param` usually set); a business-rule refusal may have no `param` (see below). |
 | 400 | `idempotency_error` | Key reused with different parameters or endpoint. |
 | 401 | `invalid_request_error` | Bad key. |
 | 404 | `invalid_request_error` / `resource_missing` | Refund or PaymentIntent not found for this merchant. |
 | 409 | `api_error` | Same key executing concurrently; retry later with the same key. |
 | 5xx | `api_error` | Retry with the same key. |
+
+Two refund refusals need specific handling:
+
+- `This account does not have enough available balance to refund this payment.` — no refund was created. Check
+  `GET /v1/balance` → `available` and `GET /v1/balance_transactions` → `available_on`; wait for funds or reduce
+  the partial refund to no more than the available amount. In test mode, card `4000 0000 0000 0077` avoids the
+  several-day pending period of card `4242 4242 4242 4242`.
+- `This account is not enabled for payouts yet.` on a refund immediately after a sale — no refund was created;
+  the platform is still reconciling the account. Wait 2–3 minutes, then retry the unchanged request with the
+  **same** `Idempotency-Key`.

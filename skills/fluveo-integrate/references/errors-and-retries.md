@@ -1,6 +1,6 @@
 # Errors, idempotency and retries
 
-Contents: [Envelope](#envelope) · [Error types](#error-types) · [Common codes](#common-codes) · [Idempotency journal](#idempotency-journal) · [Retry policy](#retry-policy) · [429 backoff](#429-backoff) · [Stripe-Version](#stripe-version) · [What to show users](#what-to-show-users) · [Reference client](#reference-client)
+Contents: [Envelope](#envelope) · [Error types](#error-types) · [Common codes](#common-codes) · [Business-rule refusals](#business-rule-refusals) · [Idempotency journal](#idempotency-journal) · [Retry policy](#retry-policy) · [429 backoff](#429-backoff) · [Stripe-Version](#stripe-version) · [What to show users](#what-to-show-users) · [Reference client](#reference-client)
 
 ## Envelope
 
@@ -31,7 +31,7 @@ Messages are redacted fail-closed: they never carry internal processor/connector
 
 | `type` | HTTP | Meaning | What to do |
 |---|---|---|---|
-| `invalid_request_error` | 400 | Malformed/missing/unsupported field. | Programming error — fix the field named in `param`. Do not retry. |
+| `invalid_request_error` | 400 | Malformed/missing/unsupported field, or a business-rule refusal. | Fix `param` when present; when absent, use the refusal guidance below. |
 | `invalid_request_error` | 401 | Missing/invalid/revoked key. | Fix credentials. |
 | `invalid_request_error` | 403 (`authentication_required`) | 3DS needed, no `return_url`. | Re-confirm with `return_url`. |
 | `invalid_request_error` | 404 (`resource_missing`) | Unknown id or another merchant's id. | Do not retry. |
@@ -61,6 +61,22 @@ Also: `400 invalid_stripe_version` for a bad `Stripe-Version` header.
 | 429 | `rate_limit_error` | Back off. |
 | 500 | `api_error` | Retry same key. |
 | 503 | `ledger_unavailable` | Retry with backoff. |
+
+## Business-rule refusals
+
+A `400 invalid_request_error` can have no `param` and use a plain-language `message` for a business rule rather
+than a malformed field. Do not treat a missing `param` as a broken error response. These known messages mean:
+
+- `This account does not have enough available balance to refund this payment.` — no refund was created. Check
+  `GET /v1/balance` → `available` and the charge row's `available_on` in `GET /v1/balance_transactions`. Wait
+  for funds to become available or request a smaller partial refund.
+- `This account is not enabled for payouts yet.` on a refund right after a sale — no refund was created. Wait
+  2–3 minutes for account reconciliation, then resend the unchanged refund with the **same** `Idempotency-Key`.
+- `This account is not enabled for payments yet.` — the account owner must finish payments onboarding and be
+  approved. Stop and tell the owner; do not retry in a loop or try to bypass approval.
+
+Do not build general control flow by parsing `message`; prefer `type`, `code`, and `param`. The exact messages
+above are documented operator guidance for the current business-rule responses, which do not yet carry a code.
 
 ## Non-JSON responses from the edge
 

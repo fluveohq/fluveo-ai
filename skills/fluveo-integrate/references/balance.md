@@ -28,8 +28,9 @@ curl https://api.devfluveo.com/v1/balance -u sk_test_example:
 }
 ```
 
-`available` may be negative (refunds/chargebacks/fees exceeding funds). `pending` = captured, not yet
-promoted to available. `instant_available` is empty and `connect_reserved` is **absent or empty** (no Instant
+`available` is the funding ceiling for refunds: pending funds never count, Fluveo does not advance refunds, and
+a refund cannot take available below zero. `pending` = captured, not yet promoted to available. `instant_available`
+is empty and `connect_reserved` is **absent or empty** (no Instant
 Payouts, no Connect) — never rely on either. Read every field defensively. Amounts are minor units.
 
 On the dev environment `GET /v1/balance_transactions` has been observed returning `503 ledger_unavailable`
@@ -119,6 +120,10 @@ only the supported filters differ. Handle `429` (`Retry-After`) and `503 ledger_
 inside the loop and resume with the same cursor.
 
 ## Reconciling a payment
+
+Right after a sale, `GET /v1/balance` can lag a few minutes behind `GET /v1/balance_transactions`. The charge
+row is the earliest signal; use its `status` and `available_on`, then expect the aggregate balance to catch up on
+the next refresh. A succeeded PaymentIntent whose charge funds are still pending cannot fund a refund.
 
 1. `GET /v1/payment_intents/{intent}` → `latest_charge` (`ch_...`).
 2. `GET /v1/balance_transactions?source=ch_...` → the `charge` row (`fee`, `net`, `available_on`) and, after a
