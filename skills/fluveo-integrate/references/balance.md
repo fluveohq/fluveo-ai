@@ -66,7 +66,9 @@ settlement. Ids may be `txn_...` or `bt_...`.
 
 On the US arm, `balance_transactions[].source` is currently always `null`. Merchants must **not** rely on
 `source` to join balance rows to charges or refunds. Match `created`, `amount`, and `type` with your own order
-records, and use `GET /v1/payment_intents/{id}` or `GET /v1/refunds?payment_intent={id}` for object status.
+records. Use `GET /v1/payment_intents/{id}` for payment status. For refund status, use
+`GET /v1/refunds?limit=100` and match the `payment_intent` field client-side, or
+`GET /v1/refunds/{id}` when you know the refund id.
 
 ## Pagination cookbook
 
@@ -125,15 +127,17 @@ inside the loop and resume with the same cursor.
 
 ## Reconciling a payment
 
-Right after a sale, `GET /v1/balance` can lag a few minutes behind `GET /v1/balance_transactions`. The charge
-row is the earliest signal; use its `status` and `available_on`, then expect the aggregate balance to catch up on
-the next refresh. A succeeded PaymentIntent whose charge funds are still pending cannot fund a refund.
+Right after a sale or refund, `GET /v1/balance` can lag a few minutes behind
+`GET /v1/balance_transactions`. The charge or refund row can appear before the aggregate balance changes; use
+its `status` and `available_on`, then expect the aggregate balance to catch up on a later refresh. A succeeded
+PaymentIntent whose charge funds are still pending cannot fund a refund.
 
 1. `GET /v1/payment_intents/{intent}` for the payment status and `latest_charge`.
 2. On the US arm, correlate balance rows by `created`, `amount`, and `type` with your own order records; do not
    join on `source`, because it is currently `null`.
-3. Use `GET /v1/refunds?payment_intent={intent}` for refund status, then `GET /v1/balance` for the aggregate.
-   Refund objects currently carry `balance_transaction: null`.
+3. For refund status, use `GET /v1/refunds?limit=100` and match `payment_intent` client-side, or retrieve a
+   known refund with `GET /v1/refunds/{id}`. Then use `GET /v1/balance` for the aggregate. Refund objects
+   currently carry `balance_transaction: null`.
 
 ## Errors
 

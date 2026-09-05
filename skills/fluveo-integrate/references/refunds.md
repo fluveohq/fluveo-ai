@@ -46,8 +46,8 @@ curl https://api.devfluveo.com/v1/refunds \
   -d reason=requested_by_customer
 ```
 
-Response `200` (one possible shape — `failure_reason`, `pending_reason`, `next_action` and `receipt_number` are
-optional and are **omitted**, not `null`, on live responses; read them defensively):
+Response `200` (one possible shape — optional fields such as `failure_reason`, `pending_reason`, `next_action`
+and `receipt_number` are present with `null` when they have no value; read them defensively):
 
 ```json
 {
@@ -199,8 +199,9 @@ Three refund refusals need specific handling:
   key keeps replaying its original `400`. In test mode, card `4000 0000 0000 0077` avoids the
   several-day pending period of card `4242 4242 4242 4242`.
 - `This account is not enabled for payouts yet.` on a refund immediately after a sale — no refund was created;
-  the platform is still reconciling the account. Wait 2–3 minutes, then retry the unchanged request with a
-  **new** `Idempotency-Key`. The first `400` is replayed when the same key is reused.
+  the platform is still reconciling the account. Retry the unchanged request with a **new** `Idempotency-Key`
+  roughly every 60 seconds; it typically succeeds within 1–3 minutes. Give up and alert an operator after about
+  10 minutes. The first `400` is replayed when the same key is reused.
 - `A previous request for this payment is still being resolved. Try again later.` — do not create another refund
   on that PaymentIntent. Wait for the previous refund to be confirmed and poll `GET /v1/refunds/{id}` until its
   `status` is terminal. If it does not settle, contact Fluveo support; changing keys does not clear this state.

@@ -71,9 +71,10 @@ than a malformed field. Do not treat a missing `param` as a broken error respons
   `GET /v1/balance` → `available` and the charge row's `available_on` in `GET /v1/balance_transactions`. Wait
   for funds to become available or request a smaller partial refund, then retry with a **new** `Idempotency-Key`.
   The first key keeps replaying its original `400`.
-- `This account is not enabled for payouts yet.` on a refund right after a sale — no refund was created. Wait
-  2–3 minutes for account reconciliation, then resend the unchanged refund with a **new** `Idempotency-Key`.
-  Reusing the first key replays its original `400` response.
+- `This account is not enabled for payouts yet.` on a refund right after a sale — no refund was created. Resend
+  the unchanged refund with a **new** `Idempotency-Key` roughly every 60 seconds; it typically succeeds within
+  1–3 minutes. Give up and alert an operator after about 10 minutes. Reusing the first key replays its original
+  `400` response.
 - `A previous request for this payment is still being resolved. Try again later.` — do not create another refund
   on that PaymentIntent. Wait for the previous refund to be confirmed and poll `GET /v1/refunds/{id}` until its
   `status` is terminal. If it remains unresolved, contact Fluveo support; a new key will not bypass it.
