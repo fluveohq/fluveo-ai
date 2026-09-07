@@ -29,6 +29,8 @@ Messages are redacted fail-closed: they never carry internal processor/connector
 
 ## Error types
 
+The same-key actions below apply only to writes with documented same-key handling, not webhook writes.
+
 | `type` | HTTP | Meaning | What to do |
 |---|---|---|---|
 | `invalid_request_error` | 400 | Malformed/missing/unsupported field, or a business-rule refusal. | Fix `param` when present; when absent, use the refusal guidance below. |
@@ -57,9 +59,9 @@ Also: `400 invalid_stripe_version` for a bad `Stripe-Version` header.
 | 402 | `card_declined` (+`decline_code`), `expired_card`, `incorrect_cvc` | Card problems. |
 | 403 | `authentication_required` | 3DS required without `return_url`. |
 | 404 | `resource_missing` | Unknown object. |
-| 404 | `unsupported_operation` | A quarantined Stripe path (e.g. top-level `/v1/payment_methods`). |
+| 404 | `unsupported_operation` | An operation absent from the contract (e.g. payment-method creation). |
 | 429 | `rate_limit_error` | Back off. |
-| 500 | `api_error` | Retry same key. |
+| 500 | `api_error` | Retry same key only on writes with documented replay handling. |
 | 503 | `ledger_unavailable` | Retry with backoff. |
 
 ## Business-rule refusals
@@ -93,7 +95,9 @@ send an explicit `User-Agent: <your-app>/<version>`.
 
 ## Idempotency journal
 
-`Idempotency-Key` (1–255 bytes, one header) is accepted on POST writes (the docs do not state whether `PUT /v1/checkout/branding` honours it; sending it there is harmless but unverified). Two tiers:
+The same-key rules below apply only to operations whose public compatibility metadata or resource guide
+documents that behavior. Do not infer replay support from the POST method or merely supplying a header.
+Use `Idempotency-Key` (1–255 bytes, one header) only where the resource guide supports it. Three groups:
 
 **Durable 24 h byte-for-byte journal** — PaymentIntent create/update/confirm/capture/cancel; Refund
 create/update; Customer create/update; Checkout Session create/update/expire; Payment Link create.
@@ -111,14 +115,24 @@ Scope: `(merchant, mode, key)`. Rules:
 - Raw card fields are not fingerprinted: same key + different card + same other params replays the first result.
 - After 24 h the key can start a new generation (a replayed create would then make a new object).
 
-**Resource-local semantics** — everything else (SetupIntents, Payment Link update/expire, Billing writes,
-Checkout Branding). Send a key anyway, but verify via `GET`/list after a retried timeout.
+**Resource-local semantics** — follow the individual guide for SetupIntents, Payment Link update/expire,
+and Billing writes; do not assume the 24-hour journal applies. This is not an “everything else” guarantee.
+Replay support for Checkout Branding is not established here; read back its state rather than assuming a
+header makes a repeated write safe.
 
-Key derivation: use your own stable operation id — `order-9001-charge`, `order-9001-refund-1`,
+**No declared replay behavior** — webhook writes.
+Webhook endpoint create/update/delete/secret rotation have no declared replay behavior (`not_applicable`).
+Do not use the generic retry client for these writes. Do not apply the general same-key retry table.
+After a lost response, follow [Events and webhooks](events-and-webhooks.md), read what can be observed,
+and ask the owner before repeating an action whose result is unknown.
+
+For writes with documented same-key handling, key derivation: use your own stable operation id — `order-9001-charge`, `order-9001-refund-1`,
 `signup-user-501`. Never a random UUID per attempt (that defeats replay), never the same key for two
 different operations on one order.
 
 ## Retry policy
+
+Apply this table only to writes with documented same-key handling. It excludes webhook endpoint writes.
 
 ```
 if 2xx                    -> done
@@ -130,8 +144,9 @@ if 5xx / timeout / conn   -> exponential backoff (1s,2s,4s,… cap 30s, jitter),
 after retries exhausted   -> for money ops, GET the object (or list) before declaring failure
 ```
 
-Timeouts on a write are **indeterminate**: the request may have executed. Always retry with the same key or read
-back the state; never issue a second create with a fresh key.
+Timeouts on a write are **indeterminate**: the request may have executed. For writes with documented
+same-key handling, retry with that key or read back state; never start a second create with a fresh key.
+For webhook writes, a key provides no declared replay guarantee: do not blindly repeat the request.
 
 ## 429 backoff
 
@@ -156,6 +171,9 @@ Omit the header or send exactly `Stripe-Version: 2026-05-27.dahlia`. Any other v
 Never show `message` verbatim, never show `client_secret`, keys, or ids beyond your own order number.
 
 ## Reference client
+
+Use this generic retry client only for reads and writes with documented same-key handling.
+Do not use it for webhook endpoint create/update/delete/secret rotation, even if you have an Idempotency-Key.
 
 ```python
 import os, time, random, requests

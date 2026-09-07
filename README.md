@@ -5,9 +5,10 @@ merchant's software with the **Fluveo payments API** — directly over HTTP, **n
 the skill, opens the relevant reference, and writes `curl` / `fetch` / `requests` code against
 `https://api.devfluveo.com/v1`.
 
-Fluveo's `/v1` is a Stripe-shaped, curated subset (57 operations, pinned to Stripe API `2026-05-27.dahlia`).
+Fluveo's `/v1` is a Stripe-shaped, curated subset (67 operations, pinned to Stripe API `2026-05-27.dahlia`).
 The exact contract ships in this repo as `spec/openapi.subset.json`; every endpoint, parameter and response field
-in the skills is validated against it.
+must be checked against it. The local validator checks endpoint mentions, links, and safety rules; it does not
+prove every parameter or response claim.
 
 ## Install
 
@@ -52,6 +53,8 @@ that layout when copying.
 | `skills/fluveo-integrate/references/payments.md` | PaymentIntents create → confirm → (capture) → retrieve; lifecycle; 3DS; cancel; list; charges; Node + Python. |
 | `skills/fluveo-integrate/references/refunds.md` | Full/partial refunds, statuses, idempotency, list. |
 | `skills/fluveo-integrate/references/checkout.md` | Checkout Sessions, Payment Links, polling-based fulfilment, expire, branding. |
+| `skills/fluveo-integrate/references/events-and-webhooks.md` | Public event reads and webhook endpoint management; delivery-verification limits. |
+| `skills/fluveo-integrate/references/payment-methods.md` | Tenant-scoped saved-card list/retrieve; no top-level writes. |
 | `skills/fluveo-integrate/references/customers.md` | Customers CRUD, customer payment methods, SetupIntents. |
 | `skills/fluveo-integrate/references/billing.md` | Products, prices, invoice items, invoices, hosted invoice URL, subscriptions. |
 | `skills/fluveo-integrate/references/balance.md` | Balance and balance-transactions pagination cookbook. |
@@ -71,70 +74,55 @@ skills/fluveo-integrate/SKILL.md     main skill
 skills/fluveo-integrate/references/  one file per topic (see index)
 skills/fluveo-docs/SKILL.md          contract lookup skill
 spec/openapi.subset.json             the contracted /v1 operations — source of truth, do not edit
-scripts/validate.py                  stdlib validator (test gate)
+scripts/validate.py                  stdlib validator entry point (test gate)
+scripts/public_contract.py           public-only OpenAPI metadata check
+scripts/test_public_contract.py      negative fixtures used by --self-test
+scripts/webhook_guidance.py          narrow webhook retry/encoding documentation checks
+scripts/test_webhook_guidance.py     broken-document fixtures used by --self-test
 ```
 
 ## Validate
 
 ```bash
 python3 scripts/validate.py              # exit 0 on success
-python3 scripts/validate.py --self-test  # proves the validator catches bad links, unknown endpoints, fake keys
+python3 scripts/validate.py --self-test  # checks bad links, unknown endpoints, fake keys, and private spec metadata
 ```
 
 Checks: skill frontmatter, relative links, every `METHOD /v1/...` example against the OpenAPI subset (with
-`not-available.md` required to list only absent paths), no real-looking secrets, plugin manifest.
+`not-available.md` required to list only absent paths), no real-looking secrets, plugin manifest, exact public spec metadata shapes, and the explicit webhook
+retry exclusion / absence of undeclared webhook form keys. These are narrow literal checks, not a general prose audit.
 
 ## Principles
 
 - Raw HTTP first; stripe-node / stripe-python pointed at Fluveo is documented as an alternative.
 - Never document an endpoint, parameter or field that is not in `spec/openapi.subset.json`.
-- Webhooks are not merchant-public; the skills teach polling and never fulfilling on a redirect alone.
+- Public event reads and webhook endpoint management are contracted. Delivery verification is not specified
+  by this snapshot; do not invent it. Polling remains an option, and a redirect alone never proves payment.
 - Secret keys never reach a browser; placeholders are always `sk_test_example`.
 
-## Known doc gaps
+## Public contract source and limits
 
-Where the Fluveo prose docs and `spec/openapi.subset.json` disagree, the OpenAPI wins for endpoint existence and
-the docs win for behaviour. Disagreements found while writing the skills:
+`spec/openapi.subset.json` is an unchanged copy of the public
+[Fluveo OpenAPI snapshot](https://github.com/fluveohq/openapi/blob/68e410de7abb12871c02f6fe38f15ab19bed63c9/openapi/spec3.json)
+at commit `68e410de7abb12871c02f6fe38f15ab19bed63c9`. Refresh only from a pinned public source, never from private source catalogs or internal implementation data.
 
-- **Operation count.** The task brief says 61 contracted operations; the shipped `spec/openapi.subset.json`
-  contains 57. The skills describe the 57.
-- **`GET /v1/setup_intents`** is declared in the spec (query `limit`, `starting_after`, `ending_before`,
-  `customer`) but its only documented response is a `400` error envelope, and `docs/api/v1/setup_intents.md`
-  says list/cancel are not mounted while the spec declares `POST /v1/setup_intents/{setup_intent}/cancel`.
-  The skill documents cancel as available (spec wins) and list as "declared but returns 400".
-- **SetupIntents status.** Docs label SetupIntents `served_uncontracted`; the spec includes them with
-  `lifecycle: served`. The skill includes them with a prominent "no parity/stability guarantee" warning.
-- **Refund by `charge`.** The refund cookbook says "against the PaymentIntent (or a `charge`)"; `RefundCreate`
-  in the spec only declares `payment_intent`. The skill documents `payment_intent` only and a resolve-the-charge
-  workaround.
-- **Payment Link idempotency mismatch code.** `payment_links.md` says key reuse with different params is
-  `409 idempotency_error`; `stripe-divergences.md` and every other resource say `400 idempotency_error`. The
-  skill states `400` (the cross-cutting rule) and `409 api_error` for concurrent execution.
-- **Idempotency journal scope.** `errors.md` lists fifteen journaled mutations including two Payout operations;
-  payouts are not in the spec, so the skill lists the fourteen that are contracted.
-- **Billing list parameters.** `products.md` / `prices.md` / `invoices.md` / `subscriptions.md` describe
-  `limit` / `starting_after` / `ending_before`, and mention `POST /v1/products/{product}`,
-  `POST /v1/prices/{price}`, invoice-item list/retrieve/delete, and a subscription `renew` extension, but the spec
-  declares no query parameters on Billing lists and none of those extra operations. The skill lists only
-  contracted operations and notes the pagination params as documented-but-undeclared.
-- **Billing `Stripe-Version`.** Billing docs mention `2024-09-30.acacia`; the platform policy is exactly
-  `2026-05-27.dahlia` or omit. The skill follows the platform policy.
-- **Checkout Session `url` / Payment Link `url` host.** Docs show `http://localhost:8080/c/...` and
-  `https://pay.fluveo.com/p/...` respectively; the spec describes `{base}/c/{cs_id}` and `{base}/p/{plink_id}`.
-  Examples use `https://api.devfluveo.com` as the base; treat the returned `url` as opaque.
-- **Upstream docs cite `api.fluveo.dev`**; the environment that exists today is `api.devfluveo.com` /
-  `dashboard.devfluveo.com` / `pay.devfluveo.com`. Update when production hosts are published.
-- **`created` filters.** `stripe-divergences.md` says `created[...]` is unsupported on lists, but the spec declares
-  `created`, `created[gt|gte|lt|lte]` on `GET /v1/checkout/sessions` only. The skill allows them only there.
-- **`expand[]`.** Declared only on `GET /v1/balance_transactions`; docs mention `expand[]=payment_intent` on
-  Checkout Session retrieve. The skill does not advertise `expand[]` on sessions.
-- **`GET /v1/balance_transactions` on dev** returned `503 ledger_unavailable` for fresh test merchants on
-  2026-09-03 while `GET /v1/balance` worked; documented as retryable, tracked as an API issue.
-- **Fluveo Elements.** `sdks/elements/README.md` uses `pk_test_...`; the API docs say publishable keys are not
-  issued. The skill describes Elements only and tells agents not to build on it yet.
-- **`Retry-After` on 409.** The idempotent-retries cookbook says a `409 idempotency_error` carries
-  `Retry-After`; `stripe-divergences.md` says the concurrent case is `409 api_error`. The skill handles both
-  by honouring `Retry-After` when present and retrying the same key.
+The snapshot declares 67 operations. The ten additions are event list/retrieve, payment-method list/retrieve,
+and webhook endpoint create/list/retrieve/update/delete/secret rotation. Its public compatibility annotations
+mark these merchant-key authenticated and test-only. Endpoint existence does not prove a live environment is ready.
+
+Examples in this repository deliberately retain the **development** base `https://api.devfluveo.com`.
+The published contract's general server is `https://api.fluveo.dev`; this is not a request to change the
+examples or proof that either host is reachable. Set `FLUVEO_API_BASE` for the environment approved by the owner.
+
+Current contract limits, not claims about private docs:
+- SetupIntent list declares a 400 response and no successful list schema; create/update/retrieve/confirm/cancel
+  are declared with lifecycle `served` and mode `test_only`. Do not infer production readiness.
+- Refund creation declares `payment_intent`, not a `charge` input.
+- Billing lists do not declare query parameters. Do not infer Stripe's complete pagination or mutation surface.
+- Webhook signature headers, signing algorithm, signed bytes, replay tolerance, delivery retries, event-type
+  enumeration and secret-rotation overlap are not specified here. See the webhook reference before implementation.
+- The schema's broad upstream PaymentMethod types do not prove support for those payment methods; the public
+  list/retrieve descriptions cover saved cards only.
 
 ## License
 

@@ -117,7 +117,8 @@ retry with the **same** key. A concurrent duplicate gets `409 api_error` — wai
 curl https://api.devfluveo.com/v1/refunds/re_3R9k8AzB2xQRH9Jf -u sk_test_example:
 ```
 
-No webhooks exist: if a refund is `pending`, poll this endpoint with backoff until terminal.
+If a refund is `pending`, polling this endpoint with backoff remains an option.
+See [Events and webhooks](events-and-webhooks.md) for the public event and endpoint-management contract.
 
 ## Update metadata
 

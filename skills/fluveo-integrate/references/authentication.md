@@ -12,7 +12,8 @@ Contents: [Base URL and mode](#base-url-and-mode) · [Two auth schemes](#two-aut
 | Key namespace issued today | `sk_test_*` only |
 
 Read the base URL from an env var (`FLUVEO_API_BASE`, default `https://api.devfluveo.com`) so it can change
-per environment. The older `api.` host on `fluveo.dev` referenced in upstream docs does **not** resolve today.
+per environment. The published contract lists the general `api.` host on `fluveo.dev`. These examples deliberately target
+the development environment instead; neither a contract entry nor this guide proves live reachability.
 
 Test mode is selected **by the key**, not by a sandbox hostname. Fluveo does not issue `sk_live_*`,
 publishable (`pk_*`) or restricted (`rk_*`) keys. An `sk_live_*`-shaped value is rejected before parsing.
@@ -51,10 +52,14 @@ Send:
 
 - `Authorization` (Basic or Bearer) — required on every `/v1` call.
 - `Content-Type: application/x-www-form-urlencoded` on POST/PUT bodies (curl `-d` sets it for you).
-- `Idempotency-Key: <your-unique-string>` on writes (1–255 bytes). See `errors-and-retries.md`.
+- `Idempotency-Key: <your-unique-string>` (1–255 bytes) only on writes whose resource guide supports it;
+  exclude webhook endpoint writes. See `errors-and-retries.md`.
 - `Stripe-Version: 2026-05-27.dahlia` — optional; see below.
 - `User-Agent: <your-app>/<version>` — always. The edge (Cloudflare) rejects Python-urllib's default UA with a
   plain-text `403 error code: 1010`, not the JSON error envelope. `python-requests`, curl and Node fetch pass.
+
+Webhook endpoint create/update/delete/secret rotation have no declared replay behavior (`not_applicable`).
+Do not use the generic retry client for these writes. See [Events and webhooks](events-and-webhooks.md) after a lost response.
 
 Never send (each is rejected with a Stripe-shaped `400`, or `401` if sent alone):
 

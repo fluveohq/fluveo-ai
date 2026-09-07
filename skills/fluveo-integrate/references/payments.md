@@ -212,7 +212,8 @@ A `succeeded` intent cannot be cancelled — create a refund instead (`refunds.m
 curl https://api.devfluveo.com/v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N -u sk_test_example:
 ```
 
-Because there are no webhooks, this is the completion signal. Poll with backoff (e.g. 1s, 2s, 4s… cap 30s)
+A server-side read is a completion check; see [Events and webhooks](events-and-webhooks.md) for the public
+endpoint contract. Poll with backoff (e.g. 1s, 2s, 4s… cap 30s)
 until `status` ∈ {`succeeded`, `requires_capture`, `canceled`, `requires_payment_method`}. `404 resource_missing`
 means the id does not exist for this merchant.
 

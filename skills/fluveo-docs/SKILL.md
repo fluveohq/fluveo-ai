@@ -6,7 +6,10 @@ description: Look up the exact Fluveo /v1 API contract (which endpoints exist, t
 # Fluveo contract lookup
 
 The single source of truth is `spec/openapi.subset.json` at the **plugin root** (sibling of `skills/`).
-Only operations in its `paths` exist. Do not trust Stripe docs, SDK method names, or memory for Fluveo.
+Only operations in its `paths` are contracted. It is copied from the pinned public source linked in
+[README](../../README.md); do not substitute private source catalogs. Do not trust Stripe docs, SDK method
+names, or memory for Fluveo. The snapshot declares 67 operations, including event reads, webhook endpoint
+management and saved-card list/retrieve. It does not specify webhook delivery verification.
 
 ## List every contracted operation
 
@@ -52,7 +55,8 @@ jq '.paths["/v1/refunds"].post.requestBody.content["application/x-www-form-urlen
 
 ## Rules
 
-- Bracket-encode nested body fields (`payment_method_data[card][number]`, `line_items[0][quantity]`).
+- Use nested body encoding documented for the specific operation (for example, the payment references).
+  Webhook optional arrays/maps have no form encoding declared in this snapshot; do not invent bracket keys.
 - A path that is absent from `paths` is **not available** — see the `fluveo-integrate` skill's
   not-available reference (`skills/fluveo-integrate/references/not-available.md`).
 - Response schemas often declare only a subset of Stripe's fields; read only declared ones.
