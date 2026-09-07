@@ -92,7 +92,8 @@ enum but not used for card payments). Both project the backing PaymentIntent.
 
 ## Fulfilment by polling
 
-There are **no webhooks**. The `success_url` visit is not proof of payment (the customer can open it directly,
+Public [events and webhook endpoints](events-and-webhooks.md) are available, but delivery verification
+is not specified by this snapshot. Polling remains an option. The `success_url` visit is not proof of payment (the customer can open it directly,
 or close the tab before it loads). Fulfil only after a server-side read:
 
 ```bash

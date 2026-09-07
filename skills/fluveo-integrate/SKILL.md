@@ -6,7 +6,7 @@ description: Integrate a merchant's software with the Fluveo payments API over r
 # Fluveo integration (raw HTTP, no SDK)
 
 Fluveo exposes a **Stripe-shaped `/v1` API**. You call it directly with HTTP; no client library is required.
-Only the 57 operations in `spec/openapi.subset.json` (plugin root) are contracted. Everything else is
+Only the 67 operations in `spec/openapi.subset.json` (plugin root) are contracted. Everything else is
 "not available" — see `references/not-available.md`. **Read the relevant reference file before writing code.**
 
 ## Wire format (memorise this block)
@@ -21,7 +21,9 @@ Writes        Content-Type: application/x-www-form-urlencoded, Stripe bracket sy
 Reads         query string (?limit=10&starting_after=pi_...). Lists: { object:"list", data:[], has_more, url }
 Responses     JSON, Stripe field names. Errors: { "error": { "type", "code", "message", "param" } }
 Stripe-Version  omit it, or send exactly 2026-05-27.dahlia. Anything else -> 400 invalid_stripe_version
-Idempotency-Key send on every write; reuse the SAME key when retrying a 5xx/timeout (see errors-and-retries.md)
+Idempotency-Key use on supported writes; reuse the SAME key for documented safe retries (see errors-and-retries.md)
+Webhook writes no replay guarantee is declared; do not assume the payment-write journal applies
+Webhook fields optional array/map form encoding is unspecified; see events-and-webhooks.md
 Amounts       integers in the smallest currency unit (4242 = $42.42); currency is lowercase ISO 4217
 Test card     4242424242424242, exp 12/2030, cvc 123 — test mode only, inline via payment_method_data[card][...]
 User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib's default with a non-JSON 403
@@ -35,6 +37,8 @@ User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib'
 | Refund (full/partial), refund status | `references/refunds.md` | `/v1/refunds` |
 | Hosted checkout page, payment links, fulfilment, branding | `references/checkout.md` | `/v1/checkout/sessions`, `/v1/payment_links`, `/v1/checkout/branding` |
 | Customers, saved cards, SetupIntents | `references/customers.md` | `/v1/customers`, `/v1/customers/{id}/payment_methods`, `/v1/setup_intents` |
+| Saved-card list/retrieve | `references/payment-methods.md` | `/v1/payment_methods` |
+| Events and webhook endpoint management | `references/events-and-webhooks.md` | `/v1/events`, `/v1/webhook_endpoints` |
 | Catalog, invoices, subscriptions | `references/billing.md` | `/v1/products`, `/v1/prices`, `/v1/invoiceitems`, `/v1/invoices`, `/v1/subscriptions` |
 | Balance, ledger, reconciliation, pagination | `references/balance.md` | `/v1/balance`, `/v1/balance_transactions` |
 | Auth headers, key handling | `references/authentication.md`, `references/security.md` | — |
@@ -50,8 +54,8 @@ User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib'
    Account creation and payments onboarding are done by the account owner in the dashboard, not by you.
 1. **Never invent endpoints, parameters, or response fields.** Unknown params return a named `400` (never ignored).
    Only read response fields declared in `spec/openapi.subset.json`; treat anything else as absent.
-2. **No webhooks.** `/v1/webhook_endpoints` and `/v1/events` are not merchant-public. Poll `GET` on the
-   single object (PaymentIntent, Checkout Session, Refund) to learn state. Never fulfil an order on a
+2. **Events and webhook endpoints are merchant-public.** Read `references/events-and-webhooks.md` for
+   their limited contract and unspecified delivery verification. Polling is still an option. Never fulfil on a
    `success_url` visit alone — retrieve the object server-side and check `status` / `payment_status`.
 3. **Secret keys stay on the server.** Never place `sk_test_*` in browser/mobile code, logs, or git.
    Never log `client_secret`. Never write card numbers into `metadata`, `description`, or logs.
@@ -79,8 +83,7 @@ User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib'
 
 Full list with workarounds in `references/not-available.md`. Highlights:
 
-- Webhooks: `/v1/webhook_endpoints`, `/v1/events` → poll instead.
-- Top-level `/v1/payment_methods` (create/attach/detach/retrieve) → only `GET /v1/customers/{customer}/payment_methods`.
+- Top-level payment-method create/update/attach/detach/delete → only list/retrieve are contracted.
 - `POST /v1/charges`, charge capture/update → use PaymentIntents. Charges are read-only.
 - Disputes, payouts, transfers, Connect, `Stripe-Account` header.
 - `POST /v1/subscriptions/{subscription}/cancel` and subscription update; `POST /v1/invoices/{invoice}/pay`; invoice void/send.

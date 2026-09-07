@@ -8,6 +8,9 @@ Checks:
      except paths listed in references/not-available.md, which must NOT be in the spec.
   4. No real-looking sk_test_/sk_live_ keys (other than sk_test_example / sk_test_...) or whsec_ secrets.
   5. .claude-plugin/plugin.json parses and has name/version/description.
+  6. Skill examples keep their explicit development host.
+  7. The bundled contract contains only approved public Fluveo metadata.
+  8. Webhook guides pin the no-replay exception and avoid undeclared form keys.
 
 Usage: python3 scripts/validate.py [--root DIR] [--self-test]
 """
@@ -16,6 +19,9 @@ import os
 import re
 import sys
 import tempfile
+
+from public_contract import check_public_contract
+from webhook_guidance import check_webhook_guidance
 
 ID_PREFIXES = ("pi", "cus", "cs", "re", "ch", "plink", "seti", "prod", "price", "in", "sub", "txn", "ii", "pm", "li", "bt", "evt", "we")
 # Matches `GET /v1/x`, and table rows like | `GET` | `/v1/x` | (backticks/pipes/whitespace between method and path).
@@ -257,9 +263,9 @@ def check_stale_host(root, rep):
             for lineno, line in enumerate(fh, 1):
                 if STALE_HOST in line:
                     hits += 1
-                    rep.fail(6, f"{md}:{lineno}", f"stale host {STALE_HOST!r}; use api.devfluveo.com")
+                    rep.fail(6, f"{md}:{lineno}", f"non-dev host {STALE_HOST!r} in skill examples; keep the explicit dev base")
     if not hits:
-        rep.ok(6, f"no stale host {STALE_HOST!r} in skills/**/*.md")
+        rep.ok(6, f"skill examples retain the explicit dev base (not {STALE_HOST!r})")
 
 
 def run(root):
@@ -270,6 +276,8 @@ def run(root):
     check_secrets(root, rep)
     check_plugin(root, rep)
     check_stale_host(root, rep)
+    check_public_contract(root, rep)
+    check_webhook_guidance(root, rep)
     return rep
 
 
@@ -317,6 +325,10 @@ def self_test():
         assert not any("GET /v1/payment_intents/{x} not" in m for m in unknown_paths), "self-test: id normalisation failed"
         assert any("/v1/disputes" in m for m in unknown_paths), "self-test: URL-form endpoint not caught"
         assert any("/v1/payment_intents/{x}/apply_thing" in m for m in unknown_paths), "self-test: table-row endpoint not caught"
+        from test_public_contract import self_test as public_contract_self_test
+        public_contract_self_test(run, tmp)
+        from test_webhook_guidance import self_test as webhook_guidance_self_test
+        webhook_guidance_self_test(run)
         print("self-test passed")
 
 

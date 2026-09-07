@@ -21,7 +21,7 @@ operation against `spec/openapi.subset.json`.
 
 ## Step 2 — keep only contracted operations
 
-Keep a Stripe call only if `METHOD /v1/path` exists in the subset (57 operations). Use the `fluveo-docs` skill to
+Keep a Stripe call only if `METHOD /v1/path` exists in the subset (67 operations). Use the `fluveo-docs` skill to
 check. Everything else — even if your Stripe SDK has a method for it — is listed in `not-available.md` with a
 workaround.
 
@@ -39,7 +39,7 @@ workaround.
 | Refund funding | Stripe can let the balance go negative | paid only from `available`; pending never counts and Fluveo does not advance refunds |
 | Refund fee | returns the processing fee on refund | processing fee is not returned, so other available funds are needed for a full refund |
 | Refund object | has `livemode` | no `livemode`; `balance_transaction` is `null` |
-| Idempotency | 24 h replay on all writes | 24 h byte-for-byte on 14 journaled ops (incl. stored 5xx); resource-local elsewhere; concurrent duplicate → `409 api_error`; ambiguous execution fail-closed |
+| Idempotency | 24 h replay on all writes | 24 h byte-for-byte on 14 journaled ops (incl. stored 5xx); resource-local only where documented; webhook writes excluded (`not_applicable`); concurrent duplicate → `409 api_error`; ambiguous execution fail-closed |
 | Idempotency mismatch | `400 idempotency_error` | same |
 | `metadata` | 50 keys / 40 / 500 | same, plus `fluveo_*` prefix reserved (`400`) |
 | PaymentIntent list | includes `client_secret`, `next_action` | always `null` in lists; retrieve for flow state |
@@ -56,9 +56,9 @@ workaround.
 | Products/prices | update/delete | create/list/retrieve only |
 | Customer create | many fields | exactly `email`, `name`, `phone`, `description`, `address`, `metadata` |
 | Customer list | `email`, `created` | `email` (exact) + Fluveo `search` |
-| Customer PMs | `/v1/payment_methods?customer=` or nested | nested only, first page only (`starting_after` → `400`) |
-| SetupIntents | contracted | served but `served_uncontracted`; list returns `400` |
-| Webhooks | `/v1/webhook_endpoints`, events | **none**; poll |
+| Customer PMs | `/v1/payment_methods?customer=` or nested | top-level list/retrieve plus nested first-page list; see `payment-methods.md` |
+| SetupIntents | contracted | declared `served`, test-only; list has no successful response schema |
+| Webhooks | `/v1/webhook_endpoints`, events | endpoint management and event reads are public; delivery verification unspecified |
 | Balance | `available`, `pending`, `instant_available`… | `instant_available`/`connect_reserved` always empty |
 | Disputes, payouts, transfers, Radar, Issuing, Terminal, Tax | yes | none |
 | Error messages | may include internals | redacted; branch on `type`/`code` |
@@ -97,20 +97,26 @@ pi = stripe.PaymentIntent.create(
 )
 ```
 
-Do not use `stripe.webhooks.constructEvent` against Fluveo — there is no delivery surface. Do not call
-`paymentMethods.*`, `charges.create`, `subscriptions.cancel`, `invoices.pay`, `disputes.*`, `payouts.*`.
+Do not assume `stripe.webhooks.constructEvent` matches Fluveo signing: the public snapshot does not specify
+the verification protocol. PaymentMethod list/retrieve are contracted, but not writes. Do not call
+`charges.create`, `subscriptions.cancel`, `invoices.pay`, `disputes.*`, `payouts.*`.
 
 ## Webhooks
 
-Your Stripe webhook handler has no Fluveo counterpart today. Replace it with a poller:
+Webhook endpoint create/update/delete/secret rotation have no declared replay behavior (`not_applicable`).
+Do not use the generic retry client for these writes. Do not retry a lost response under a same-key promise.
+
+Read [Events and webhooks](events-and-webhooks.md) before porting your handler. Management endpoints and
+event reads exist; signature verification and delivery behavior need a precise public specification before
+a handler can be trusted. Until then, keep server-side polling as an option:
 
 - Checkout: reconcile `GET /v1/checkout/sessions/{session}` (`status`, `payment_status`).
 - Card payments: reconcile `GET /v1/payment_intents/{intent}` (`status`).
 - Refunds: `GET /v1/refunds/{refund}` (`status`).
 - Invoices/subscriptions: `GET /v1/invoices/{invoice}` / `GET /v1/subscriptions/{subscription}`.
 
-Keep the handler code idempotent so it can be re-wired when webhooks are promoted. Never register
-`/v1/webhook_endpoints` or read `/v1/events` with a merchant key.
+Keep order updates safe to repeat. Use only the owning merchant key for event reads and endpoint management;
+never substitute an admin or processor credential.
 
 ## Migration checklist
 
@@ -118,7 +124,8 @@ Keep the handler code idempotent so it can be re-wired when webhooks are promote
 - [ ] Set `Stripe-Version` to `2026-05-27.dahlia` or remove it.
 - [ ] For each call: confirm the operation is in the subset; strip undeclared params and list filters.
 - [ ] Replace `payment_method=pm_...` flows with hosted Checkout or inline test cards.
-- [ ] Replace webhooks with polling; never fulfil on redirect alone.
+- [ ] Check the public webhook contract and its verification limits; retain polling where needed; never fulfil on redirect alone.
 - [ ] Stop reading undeclared response fields (e.g. `charges.data` on a PaymentIntent, `refund.livemode`).
-- [ ] Make retries reuse the same `Idempotency-Key`; handle `409`.
+- [ ] Reuse the same `Idempotency-Key` only for writes with documented same-key handling; handle `409`.
+      Exclude webhook endpoint create/update/delete/secret rotation and follow their resource guide.
 - [ ] Remove browser code that expects a `pk_` key.

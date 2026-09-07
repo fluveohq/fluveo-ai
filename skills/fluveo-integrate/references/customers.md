@@ -90,7 +90,7 @@ curl -G https://api.devfluveo.com/v1/customers -u sk_test_example: -d limit=50 -
 
 ## Customer payment methods
 
-`GET /v1/customers/{customer}/payment_methods` — the **only** contracted PaymentMethod operation. Query params:
+`GET /v1/customers/{customer}/payment_methods` — the nested saved-card operation. Query params:
 `limit` (1–100) and optional `type=card`. `starting_after`, `ending_before`, `expand[]` → named `400`, so only
 the first page is reachable even if `has_more` is `true`.
 
@@ -106,13 +106,13 @@ curl -G https://api.devfluveo.com/v1/customers/cus_9R8e8AzB2xQRH9Jf/payment_meth
               "card": { "brand": "visa", "last4": "4242", "exp_month": 12, "exp_year": 2030, "funding": "credit", "country": "US", "fingerprint": null } } ] }
 ```
 
-Never returns PAN/CVC. `metadata` is always `{}`. Top-level `/v1/payment_methods` (retrieve, attach, detach,
-create, delete) is **not available** — see `not-available.md`.
+Never returns PAN/CVC. `metadata` is always `{}` on this nested list. Top-level list/retrieve are also
+contracted; see [Payment methods](payment-methods.md). Top-level writes remain unavailable.
 
 ## SetupIntents (save a card)
 
-SetupIntents are served in test mode and declared in the OpenAPI subset, but Fluveo labels them
-`served_uncontracted`: no parity, stability or SDK guarantee. Do not build a production dependency on them yet.
+SetupIntents are declared with lifecycle `served` and mode `test_only` in the public contract.
+This does not promise full Stripe parity or production readiness.
 Body fields (create/update/confirm): `customer`, `confirm`, `currency`, `description`, `metadata`,
 `payment_method_data[type]=card` + `payment_method_data[card][number|exp_month|exp_year|cvc]`,
 `payment_method_data[billing_details]`, `receipt_email`, `return_url`, `setup_future_usage`

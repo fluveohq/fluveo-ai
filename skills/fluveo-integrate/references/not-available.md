@@ -4,23 +4,21 @@ Contents: [How to read this](#how-to-read-this) · [Webhooks and events](#webhoo
 
 ## How to read this
 
-Every path below is **absent from `spec/openapi.subset.json`**. Calling one returns `404` (often
-`code: unsupported_operation`), `400`, or `503` — never a fabricated success. Do not document them as available,
+The operations and features listed as unavailable below are not promised by `spec/openapi.subset.json`.
+A declared path may support other methods; check the method as well as the path. The SetupIntent list
+exception below is declared without a successful response schema. Do not document them as available,
 do not add them to client wrappers, and do not use SDK method presence as evidence they exist.
 
 ## Webhooks and events
 
-| Not available | Workaround |
-|---|---|
-| `POST /v1/webhook_endpoints`, `GET /v1/webhook_endpoints`, `GET /v1/webhook_endpoints/{webhook_endpoint}`, `POST /v1/webhook_endpoints/{webhook_endpoint}`, `DELETE /v1/webhook_endpoints/{webhook_endpoint}` | Poll: `/v1/payment_intents/{intent}` (GET), `/v1/checkout/sessions/{session}` (GET), `/v1/refunds/{refund}` (GET), `/v1/invoices/{invoice}` (GET), `/v1/subscriptions/{subscription}` (GET). Run a background reconciler over open sessions / pending orders. |
-| `GET /v1/events`, `GET /v1/events/{id}` | Same — poll objects. |
-| Signature verification (`Stripe-Signature`, `whsec_` secrets) | Nothing to verify; SDK helpers only work on payloads you supply. Never embed a webhook secret expecting deliveries. |
+Delivery signature verification and retry behavior are not specified by this snapshot. Do not invent them.
+See [Events and webhooks](events-and-webhooks.md) for the contracted reads and endpoint management.
 
 ## Payment methods
 
 | Not available | Workaround |
 |---|---|
-| `POST /v1/payment_methods`, `GET /v1/payment_methods`, `GET /v1/payment_methods/{payment_method}`, `POST /v1/payment_methods/{payment_method}`, `POST /v1/payment_methods/{payment_method}/attach`, `POST /v1/payment_methods/{payment_method}/detach`, `DELETE /v1/payment_methods/{payment_method}` | Only `/v1/customers/{customer}/payment_methods` (GET) (first page, card only) is contracted. Save cards via SetupIntents (uncontracted). |
+| `POST /v1/payment_methods`, `POST /v1/payment_methods/{payment_method}`, `POST /v1/payment_methods/{payment_method}/attach`, `POST /v1/payment_methods/{payment_method}/detach`, `DELETE /v1/payment_methods/{payment_method}` | Top-level saved-card list/retrieve and the nested customer list are contracted; see [Payment methods](payment-methods.md). |
 | `payment_method=pm_...` on PaymentIntent create/confirm | Inline `payment_method_data[type]=card` + card fields (test mode) or hosted Checkout with `customer=`. |
 | `POST /v1/tokens`, `POST /v1/sources`, `/v1/customers/{customer}/sources` | Use hosted Checkout / Payment Links. |
 | Non-card payment method types (`pix`, `boleto`, `sepa_debit`, wallets…) | Card only today. |
