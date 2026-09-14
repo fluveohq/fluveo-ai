@@ -36,7 +36,7 @@ def invalid_metadata():
 
 
 def self_test(run, root):
-    path = os.path.join(root, "spec", "openapi.subset.json")
+    path = os.path.join(root, "skills", "fluveo-integrate", "spec", "openapi.subset.json")
     with open(path, encoding="utf-8") as stream:
         original = json.load(stream)
     count = 0

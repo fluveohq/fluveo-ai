@@ -1,7 +1,7 @@
 # Events and webhook endpoints
 
 Source: [public OpenAPI at `68e410d`](https://github.com/fluveohq/openapi/blob/68e410de7abb12871c02f6fe38f15ab19bed63c9/openapi/spec3.json),
-bundled as `spec/openapi.subset.json`. These eight operations are merchant-public and test-only.
+bundled as `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`). These eight operations are merchant-public and test-only.
 Use the owning merchant's server-side `sk_test_*` key with Basic (empty password) or Bearer authentication.
 Do not add merchant IDs, `Stripe-Account`, admin credentials, or processor headers to cross tenants.
 Human account setup and approved payments onboarding remain prerequisites; see [Authentication](authentication.md).

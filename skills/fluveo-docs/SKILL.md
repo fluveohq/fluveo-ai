@@ -5,17 +5,23 @@ description: Look up the exact Fluveo /v1 API contract (which endpoints exist, t
 
 # Fluveo contract lookup
 
-The single source of truth is `spec/openapi.subset.json` at the **plugin root** (sibling of `skills/`).
-Only operations in its `paths` are contracted. It is copied from the pinned public source linked in
-[README](../../README.md); do not substitute private source catalogs. Do not trust Stripe docs, SDK method
+The single source of truth is `spec/openapi.subset.json` in **this skill folder** (the directory containing this `SKILL.md`).
+Only operations in its `paths` are contracted. It is copied from the pinned
+[public OpenAPI snapshot](https://github.com/fluveohq/openapi/blob/68e410de7abb12871c02f6fe38f15ab19bed63c9/openapi/spec3.json); do not substitute private source catalogs. Do not trust Stripe docs, SDK method
 names, or memory for Fluveo. The snapshot declares 67 operations, including event reads, webhook endpoint
 management and saved-card list/retrieve. It does not specify webhook delivery verification.
+
+Set `SKILL_DIR` to the absolute directory containing the `SKILL.md` you are reading, not your project
+directory. Fill in the placeholder in each snippet below; the spec travels with this skill.
 
 ## List every contracted operation
 
 ```bash
+export SKILL_DIR="/absolute/path/to/this/skill" # directory containing this SKILL.md
 python3 - <<'EOF'
-import json; d = json.load(open("spec/openapi.subset.json"))
+import json, os
+SKILL_DIR = os.environ["SKILL_DIR"]
+d = json.load(open(f"{SKILL_DIR}/spec/openapi.subset.json"))
 for p, ops in d["paths"].items():
     for m in ops: print(m.upper(), p)
 EOF
@@ -24,9 +30,11 @@ EOF
 ## Show params and response fields for one path
 
 ```bash
+export SKILL_DIR="/absolute/path/to/this/skill" # directory containing this SKILL.md
 python3 - <<'EOF'
-import json, sys
-d = json.load(open("spec/openapi.subset.json")); path = "/v1/payment_intents"    # <- edit
+import json, os
+SKILL_DIR = os.environ["SKILL_DIR"]
+d = json.load(open(f"{SKILL_DIR}/spec/openapi.subset.json")); path = "/v1/payment_intents"    # <- edit
 def deref(s):
     while "$ref" in s:
         o = d
@@ -49,8 +57,9 @@ EOF
 Equivalent with `jq`:
 
 ```bash
-jq -r '.paths | to_entries[] | .key as $p | .value | keys[] | "\(. | ascii_upcase) \($p)"' spec/openapi.subset.json
-jq '.paths["/v1/refunds"].post.requestBody.content["application/x-www-form-urlencoded"].schema' spec/openapi.subset.json
+export SKILL_DIR="/absolute/path/to/this/skill" # directory containing this SKILL.md
+jq -r '.paths | to_entries[] | .key as $p | .value | keys[] | "\(. | ascii_upcase) \($p)"' "$SKILL_DIR/spec/openapi.subset.json"
+jq '.paths["/v1/refunds"].post.requestBody.content["application/x-www-form-urlencoded"].schema' "$SKILL_DIR/spec/openapi.subset.json"
 ```
 
 ## Rules

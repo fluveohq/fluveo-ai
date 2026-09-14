@@ -11,6 +11,7 @@ Checks:
   6. Skill examples keep their explicit development host.
   7. The bundled contract contains only approved public Fluveo metadata.
   8. Webhook guides pin the no-replay exception and avoid undeclared form keys.
+  9. Every skill bundles a contract with identical sha256.
 
 Usage: python3 scripts/validate.py [--root DIR] [--self-test]
 """
@@ -21,6 +22,7 @@ import sys
 import tempfile
 
 from public_contract import check_public_contract
+from spec_bundles import check_spec_bundles
 from webhook_guidance import check_webhook_guidance
 
 ID_PREFIXES = ("pi", "cus", "cs", "re", "ch", "plink", "seti", "prod", "price", "in", "sub", "txn", "ii", "pm", "li", "bt", "evt", "we")
@@ -174,7 +176,7 @@ def extract_endpoints(line):
 
 
 def check_endpoints(root, rep):
-    spec_path = os.path.join(root, "spec", "openapi.subset.json")
+    spec_path = os.path.join(root, "skills", "fluveo-integrate", "spec", "openapi.subset.json")
     if not os.path.isfile(spec_path):
         rep.fail(3, spec_path, "spec/openapi.subset.json missing")
         return
@@ -270,6 +272,7 @@ def check_stale_host(root, rep):
 
 def run(root):
     rep = Report()
+    check_spec_bundles(root, rep)
     check_frontmatter(root, rep)
     check_links(root, rep)
     check_endpoints(root, rep)
@@ -291,22 +294,22 @@ def print_report(rep):
 
 def self_test():
     with tempfile.TemporaryDirectory() as tmp:
-        os.makedirs(os.path.join(tmp, "spec"))
+        os.makedirs(os.path.join(tmp, "skills", "fluveo-integrate", "spec"))
         os.makedirs(os.path.join(tmp, ".claude-plugin"))
-        os.makedirs(os.path.join(tmp, "skills", "broken", "references"))
-        with open(os.path.join(tmp, "spec", "openapi.subset.json"), "w") as fh:
+        os.makedirs(os.path.join(tmp, "skills", "fluveo-integrate", "references"))
+        with open(os.path.join(tmp, "skills", "fluveo-integrate", "spec", "openapi.subset.json"), "w") as fh:
             json.dump({"paths": {"/v1/payment_intents": {"post": {}}, "/v1/payment_intents/{intent}": {"get": {}}}}, fh)
         with open(os.path.join(tmp, ".claude-plugin", "plugin.json"), "w") as fh:
             json.dump({"name": "x", "version": "0.0.1", "description": "d"}, fh)
-        with open(os.path.join(tmp, "skills", "broken", "SKILL.md"), "w") as fh:
-            fh.write("---\nname: broken\ndescription: deliberately broken\n---\n"
+        with open(os.path.join(tmp, "skills", "fluveo-integrate", "SKILL.md"), "w") as fh:
+            fh.write("---\nname: fluveo-integrate\ndescription: deliberately broken\n---\n"
                      "See [missing](references/missing.md).\n"
                      "POST /v1/payment_intents\n"
                      "GET /v1/payment_intents/pi_1A9e8AzB2xQRH9JfQu5N\n"
                      "POST /v1/webhook_endpoints\n"
                      "| `POST` | `/v1/payment_intents/{intent}/apply_thing` | table row |\n"
                      "curl https://api.fluveo.dev/v1/disputes -u sk_test_51Habcdefghijklmnop:\n")
-        with open(os.path.join(tmp, "skills", "broken", "references", "not-available.md"), "w") as fh:
+        with open(os.path.join(tmp, "skills", "fluveo-integrate", "references", "not-available.md"), "w") as fh:
             fh.write("- `POST /v1/payment_intents` (wrongly listed)\n")
         rep = run(tmp)
         kinds = {(c, m.split(" ")[0] if c == 3 else "") for c, _w, m in rep.failures}
@@ -329,6 +332,8 @@ def self_test():
         public_contract_self_test(run, tmp)
         from test_webhook_guidance import self_test as webhook_guidance_self_test
         webhook_guidance_self_test(run)
+        from test_spec_bundles import self_test as spec_bundles_self_test
+        spec_bundles_self_test(run)
         print("self-test passed")
 
 
