@@ -11,7 +11,7 @@ REFERENCES = ("errors-and-retries.md", "authentication.md", "migrate-from-stripe
 
 
 def test_webhook_not_applicable_retry_guidance(run, root):
-    path = root / "spec/openapi.subset.json"
+    path = root / "skills/fluveo-integrate/spec/openapi.subset.json"
     original = path.read_text()
     spec = json.loads(original)
     writes = [op for methods in spec["paths"].values()
@@ -47,16 +47,16 @@ def test_webhook_form_examples_require_declared_encoding(run, root):
 
 
 def self_test(run):
-    source = Path(__file__).resolve().parents[1] / "spec/openapi.subset.json"
+    source = Path(__file__).resolve().parents[1] / "skills/fluveo-integrate/spec/openapi.subset.json"
     spec = json.loads(source.read_text(encoding="utf-8"))
     spec["paths"] = {path: methods for path, methods in spec["paths"].items()
                      if path.startswith("/v1/webhook_endpoints")}
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
-        (root / "spec").mkdir()
-        (root / "spec/openapi.subset.json").write_text(json.dumps(spec))
+        (root / "skills/fluveo-integrate/spec").mkdir(parents=True)
+        (root / "skills/fluveo-integrate/spec/openapi.subset.json").write_text(json.dumps(spec))
         references = root / "skills/fluveo-integrate/references"
-        references.mkdir(parents=True)
+        references.mkdir(parents=True, exist_ok=True)
         for name in REFERENCES:
             (references / name).write_text(WARNING)
         (references / "events-and-webhooks.md").write_text("Optional form serialization is unspecified.\n")

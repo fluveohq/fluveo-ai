@@ -39,7 +39,7 @@ def check_form_examples(operations, references, report):
 
 
 def check_webhook_guidance(root, report):
-    path = Path(root) / "spec/openapi.subset.json"
+    path = Path(root) / "skills/fluveo-integrate/spec/openapi.subset.json"
     if not path.is_file():
         return
     operations = webhook_writes(json.loads(path.read_text(encoding="utf-8")))

@@ -54,7 +54,7 @@ def metadata_errors(value, location="$"):
 
 
 def check_public_contract(root, report):
-    path = os.path.join(root, "spec", "openapi.subset.json")
+    path = os.path.join(root, "skills", "fluveo-integrate", "spec", "openapi.subset.json")
     if not os.path.isfile(path):
         report.fail(7, path, "public contract missing")
         return

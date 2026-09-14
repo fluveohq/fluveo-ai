@@ -6,7 +6,7 @@ description: Integrate a merchant's software with the Fluveo payments API over r
 # Fluveo integration (raw HTTP, no SDK)
 
 Fluveo exposes a **Stripe-shaped `/v1` API**. You call it directly with HTTP; no client library is required.
-Only the 67 operations in `spec/openapi.subset.json` (plugin root) are contracted. Everything else is
+Only the 67 operations in `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`) are contracted. Everything else is
 "not available" — see `references/not-available.md`. **Read the relevant reference file before writing code.**
 
 ## Wire format (memorise this block)
@@ -45,15 +45,15 @@ User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib'
 | Error handling, retries, idempotency, 429 | `references/errors-and-retries.md` | — |
 | Porting existing Stripe code / stripe-node / stripe-python | `references/migrate-from-stripe.md` | — |
 | "Does Fluveo support X?" | `references/not-available.md` | — |
-| Exact parameter/field contract for one operation | use the `fluveo-docs` skill (`spec/openapi.subset.json`) | — |
+| Exact parameter/field contract for one operation | use the `fluveo-docs` skill (`spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`)) | — |
 
 ## Critical rules
 
-0. **Public `/v1` only, no bypasses.** Use only the operations in `spec/openapi.subset.json`. Never call dashboard routes,
+0. **Public `/v1` only, no bypasses.** Use only the operations in `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`). Never call dashboard routes,
    `/internal/` paths, admin/processor endpoints, or anything that needs a credential other than the merchant `sk_test_` key.
    Account creation and payments onboarding are done by the account owner in the dashboard, not by you.
 1. **Never invent endpoints, parameters, or response fields.** Unknown params return a named `400` (never ignored).
-   Only read response fields declared in `spec/openapi.subset.json`; treat anything else as absent.
+   Only read response fields declared in `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`); treat anything else as absent.
 2. **Events and webhook endpoints are merchant-public.** Read `references/events-and-webhooks.md` for
    their limited contract and unspecified delivery verification. Polling is still an option. Never fulfil on a
    `success_url` visit alone — retrieve the object server-side and check `status` / `payment_status`.

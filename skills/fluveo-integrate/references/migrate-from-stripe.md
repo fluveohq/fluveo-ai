@@ -4,7 +4,7 @@ Contents: [Step 1 — base URL and key](#step-1--base-url-and-key) · [Step 2 �
 
 Fluveo's `/v1` is shape-compatible with a **curated subset** of Stripe API `2026-05-27.dahlia` — same paths,
 field names, form encoding, list envelope, error envelope. It is not the whole Stripe API. Migrate operation by
-operation against `spec/openapi.subset.json`.
+operation against `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`).
 
 ## Step 1 — base URL and key
 

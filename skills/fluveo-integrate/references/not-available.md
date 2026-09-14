@@ -4,7 +4,7 @@ Contents: [How to read this](#how-to-read-this) · [Webhooks and events](#webhoo
 
 ## How to read this
 
-The operations and features listed as unavailable below are not promised by `spec/openapi.subset.json`.
+The operations and features listed as unavailable below are not promised by `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`).
 A declared path may support other methods; check the method as well as the path. The SetupIntent list
 exception below is declared without a successful response schema. Do not document them as available,
 do not add them to client wrappers, and do not use SDK method presence as evidence they exist.
@@ -110,6 +110,6 @@ See [Events and webhooks](events-and-webhooks.md) for the contracted reads and e
 
 ## Everything else
 
-If a `METHOD /v1/path` is not in `spec/openapi.subset.json`, assume it is not available. Run the `fluveo-docs`
+If a `METHOD /v1/path` is not in `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`), assume it is not available. Run the `fluveo-docs`
 skill's snippet to check before writing code, and prefer telling the user "Fluveo does not expose X today; here is
 the closest supported flow" over guessing.

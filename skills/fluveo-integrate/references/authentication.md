@@ -34,7 +34,7 @@ never by an integration or an agent. This skill only needs the resulting key:
 4. If a write returns `400 invalid_request_error` with `This account is not enabled for payments yet.`, the account's
    onboarding is not approved yet — stop and tell the owner; do not retry in a loop and do not look for workarounds.
 
-Only the public `/v1` API (the operations in `spec/openapi.subset.json`) is available to integrations. Dashboard
+Only the public `/v1` API (the operations in `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`)) is available to integrations. Dashboard
 routes and any `/internal/` path are private and blocked for external callers.
 
 ## Two auth schemes

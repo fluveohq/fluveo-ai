@@ -6,7 +6,7 @@ the skill, opens the relevant reference, and writes `curl` / `fetch` / `requests
 `https://api.devfluveo.com/v1`.
 
 Fluveo's `/v1` is a Stripe-shaped, curated subset (67 operations, pinned to Stripe API `2026-05-27.dahlia`).
-The exact contract ships in this repo as `spec/openapi.subset.json`; every endpoint, parameter and response field
+The exact contract ships inside each skill folder as `spec/openapi.subset.json`; every endpoint, parameter and response field
 must be checked against it. The local validator checks endpoint mentions, links, and safety rules; it does not
 prove every parameter or response claim.
 
@@ -29,9 +29,9 @@ npx skills add fluveohq/fluveo-ai --skill fluveo-integrate
 ```
 
 **Codex** — copy `skills/fluveo-integrate` and `skills/fluveo-docs` into `~/.codex/skills/` (or your
-project's `.codex/skills/`) together with `spec/openapi.subset.json` at the parent of `skills/`.
+project's `.codex/skills/`). Each folder already contains its spec.
 
-**Cursor** — copy the two skill folders into `.cursor/skills/` in your project (keep `spec/` beside `skills/`),
+**Cursor** — copy the two skill folders into `.cursor/skills/` in your project (each already contains its spec),
 or reference `skills/fluveo-integrate/SKILL.md` from a Cursor rule.
 
 **Manual (any agent)**
@@ -41,8 +41,9 @@ git clone https://github.com/fluveohq/fluveo-ai
 # point your agent at fluveo-ai/skills/fluveo-integrate/SKILL.md
 ```
 
-The `fluveo-docs` skill expects `spec/openapi.subset.json` at the plugin root (sibling of `skills/`). Keep
-that layout when copying.
+Each skill includes its own `spec/openapi.subset.json`. Copy the whole skill folder; nothing from its
+parent directory is required. In lookup snippets, set `SKILL_DIR` to the installed folder containing that
+skill's `SKILL.md`, not the consumer project directory.
 
 ## Skill index
 
@@ -62,7 +63,9 @@ that layout when copying.
 | `skills/fluveo-integrate/references/security.md` | Key handling, browser boundary, PCI, `client_secret`, rotation. |
 | `skills/fluveo-integrate/references/migrate-from-stripe.md` | Divergence table; pointing stripe-node / stripe-python at Fluveo. |
 | `skills/fluveo-integrate/references/not-available.md` | Every Stripe surface that is NOT contracted, with workarounds. |
-| `skills/fluveo-docs/SKILL.md` | How to look up the exact contract in `spec/openapi.subset.json` (python / jq snippets). |
+| `skills/fluveo-docs/SKILL.md` | How to look up the exact contract in its own `spec/openapi.subset.json` (python / jq snippets). |
+
+Both skill folders contain `spec/openapi.subset.json`, identical copies of the pinned contract.
 
 ## Repository layout
 
@@ -73,36 +76,41 @@ LICENSE                              MIT
 skills/fluveo-integrate/SKILL.md     main skill
 skills/fluveo-integrate/references/  one file per topic (see index)
 skills/fluveo-docs/SKILL.md          contract lookup skill
-spec/openapi.subset.json             the contracted /v1 operations — source of truth, do not edit
+skills/fluveo-integrate/spec/openapi.subset.json  contracted /v1 operations — do not edit
+skills/fluveo-docs/spec/openapi.subset.json       identical bundled contract — do not edit
 scripts/validate.py                  stdlib validator entry point (test gate)
 scripts/public_contract.py           public-only OpenAPI metadata check
 scripts/test_public_contract.py      negative fixtures used by --self-test
 scripts/webhook_guidance.py          narrow webhook retry/encoding documentation checks
 scripts/test_webhook_guidance.py     broken-document fixtures used by --self-test
+scripts/spec_bundles.py              check every skill has the same contract bytes
+scripts/test_spec_bundles.py         missing/drifted-copy fixtures used by --self-test
+scripts/test_skill_install.py        run lookup snippets from a consumer directory
 ```
 
 ## Validate
 
 ```bash
 python3 scripts/validate.py              # exit 0 on success
-python3 scripts/validate.py --self-test  # checks bad links, unknown endpoints, fake keys, and private spec metadata
+python3 scripts/validate.py --self-test  # checks bad links, unknown endpoints, fake keys, private spec metadata, and spec copy drift
 ```
 
 Checks: skill frontmatter, relative links, every `METHOD /v1/...` example against the OpenAPI subset (with
 `not-available.md` required to list only absent paths), no real-looking secrets, plugin manifest, exact public spec metadata shapes, and the explicit webhook
-retry exclusion / absence of undeclared webhook form keys. These are narrow literal checks, not a general prose audit.
+retry exclusion / absence of undeclared webhook form keys, and matching sha256 for a spec inside every skill folder. These are narrow literal checks, not a general prose audit.
 
 ## Principles
 
 - Raw HTTP first; stripe-node / stripe-python pointed at Fluveo is documented as an alternative.
-- Never document an endpoint, parameter or field that is not in `spec/openapi.subset.json`.
+- Never document an endpoint, parameter or field that is not in the skill's bundled `spec/openapi.subset.json`.
 - Public event reads and webhook endpoint management are contracted. Delivery verification is not specified
   by this snapshot; do not invent it. Polling remains an option, and a redirect alone never proves payment.
 - Secret keys never reach a browser; placeholders are always `sk_test_example`.
 
 ## Public contract source and limits
 
-`spec/openapi.subset.json` is an unchanged copy of the public
+The copies at `skills/fluveo-integrate/spec/openapi.subset.json` and
+`skills/fluveo-docs/spec/openapi.subset.json` live inside their skills and are unchanged copies of the public
 [Fluveo OpenAPI snapshot](https://github.com/fluveohq/openapi/blob/68e410de7abb12871c02f6fe38f15ab19bed63c9/openapi/spec3.json)
 at commit `68e410de7abb12871c02f6fe38f15ab19bed63c9`. Refresh only from a pinned public source, never from private source catalogs or internal implementation data.
 
