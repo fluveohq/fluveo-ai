@@ -30,9 +30,16 @@ never by an integration or an agent. This skill only needs the resulting key:
    (`FLUVEO_API_KEY`). The examples use `FLUVEO_API_KEY`, but any environment-variable name works; map your
    existing secret name in your code. The only rule is that the key stays server-side and is never sent to browser code.
    Never ask for dashboard credentials and never script the dashboard.
-3. Verify: `curl "$FLUVEO_API_BASE/v1/balance" -u "$FLUVEO_API_KEY:" -H "User-Agent: myshop/1.0"` → `200`.
-4. If a write returns `400 invalid_request_error` with `This account is not enabled for payments yet.`, the account's
-   onboarding is not approved yet — stop and tell the owner; do not retry in a loop and do not look for workarounds.
+3. At startup or in a health check, verify: `curl "$FLUVEO_API_BASE/v1/balance" -u "$FLUVEO_API_KEY:" -H "User-Agent: myshop/1.0"`.
+   - `200` = key valid **and** account enabled; proceed.
+   - `400` with `{"error":{"type":"invalid_request_error","message":"This account is not enabled for payments yet."}}`
+     = key valid but onboarding not approved yet; stop and tell the owner, do not retry in a loop, do not look for workarounds.
+   - `401` = wrong or revoked key; fix the credential.
+4. The not-enabled response affects reads too, including `GET /v1/balance`, not just writes. Approval took about
+   30 minutes in the test environment; the dashboard may reopen onboarding asking for more details.
+   Checkout Session creation can still return `200` with `status: open`, `payment_status: unpaid` and a working card-form `url`
+   before approval. A `200` from session or payment link creation is not proof the account can take payments;
+   do not send buyers to a hosted page while the account is not enabled.
 
 Only the public `/v1` API (the operations in `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`)) is available to integrations. Dashboard
 routes and any `/internal/` path are private and blocked for external callers.

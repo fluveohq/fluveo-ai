@@ -13,7 +13,7 @@ Only the 67 operations in `spec/openapi.subset.json` in this skill folder (the d
 
 ```
 Base URL      read from env FLUVEO_API_BASE. Today: https://api.devfluveo.com   (local dev: http://localhost:8080)
-Key           the account OWNER creates the merchant + completes payments onboarding in the dashboard and hands you the sk_test_ key; never script the dashboard
+Key           the OWNER creates the merchant, submits payments onboarding and hands you the sk_test_ key; GET /v1/balance → 200 = valid + enabled; 400 not-enabled = valid, awaiting approval (stop); 401 = wrong/revoked; never script the dashboard
 Auth          HTTP Basic  -u sk_test_example:   (key as username, EMPTY password, keep the colon)
           or  Authorization: Bearer sk_test_example
 Keys          only sk_test_* exist today. No sk_live_*, no pk_*, no rk_*. Mode comes from the key, not the host.
@@ -28,6 +28,15 @@ Amounts       integers in the smallest currency unit (4242 = $42.42); currency i
 Test card     4242424242424242, exp 12/2030, cvc 123 — test mode only, inline via payment_method_data[card][...]
 User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib's default with a non-JSON 403
 ```
+
+## Before you start
+
+1. Read `FLUVEO_API_KEY` and `FLUVEO_API_BASE` from the environment; never print them.
+2. `GET /v1/balance`: `200` = valid key + enabled; `400 invalid_request_error` with `This account is not enabled for payments yet.` = valid key, awaiting approval: stop, tell the owner, no retry loop or workaround; `401` = wrong/revoked key.
+3. Prefer hosted Checkout Sessions unless the merchant is PCI-scoped for inline cards.
+4. Persist the order and its `Idempotency-Key` before calling the API.
+5. Mark paid only from a server-side session read with `status == "complete"` **and** `payment_status == "paid"`.
+6. The buyer may not return from the hosted page: give them their order link first and reconcile pending orders on a schedule.
 
 ## Routing table — what are you building?
 
@@ -52,11 +61,15 @@ User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib'
 0. **Public `/v1` only, no bypasses.** Use only the operations in `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`). Never call dashboard routes,
    `/internal/` paths, admin/processor endpoints, or anything that needs a credential other than the merchant `sk_test_` key.
    Account creation and payments onboarding are done by the account owner in the dashboard, not by you.
+   Check `GET /v1/balance` at startup or in a health check (above); session or payment link creation returning
+   `200` does not prove the account can take payments. Never send buyers to hosted pages while not enabled.
 1. **Never invent endpoints, parameters, or response fields.** Unknown params return a named `400` (never ignored).
    Only read response fields declared in `spec/openapi.subset.json` in this skill folder (the directory containing `SKILL.md`); treat anything else as absent.
 2. **Events and webhook endpoints are merchant-public.** Read `references/events-and-webhooks.md` for
    their limited contract and unspecified delivery verification. Polling is still an option. Never fulfil on a
-   `success_url` visit alone — retrieve the object server-side and check `status` / `payment_status`.
+   `success_url` visit alone — retrieve the session server-side and require `status == "complete"` **and** `payment_status == "paid"`.
+   Today the buyer stays on the Fluveo confirmation page; `success_url` is informational only. Give the order
+   link or confirmation email before or independently of any return, and poll/reconcile without waiting for a visit.
 3. **Secret keys stay on the server.** Never place `sk_test_*` in browser/mobile code, logs, or git.
    Never log `client_secret`. Never write card numbers into `metadata`, `description`, or logs.
 4. **Saved `pm_*` ids on a PaymentIntent return 400.** Use inline `payment_method_data[type]=card` +
@@ -70,7 +83,8 @@ User-Agent    always send one (e.g. myshop/1.0); the edge rejects Python-urllib'
 7. **Metadata.** ≤50 keys, key ≤40 chars, value ≤500 chars. The `fluveo_` key prefix is reserved (400).
 8. **Lists** reject unsupported filters with `400` and may lag a just-written object by seconds; the
    single-object `GET` is authoritative. Cursors: `starting_after` / `ending_before` (mutually exclusive).
-9. **Don't branch on `message` text.** Branch on `error.type` then `error.code`; `param` names the field.
+9. **Don't branch on `message` text generally.** Branch on `error.type` then `error.code`; `param` names the field.
+   Exception: the exact not-enabled message in the startup check above has no code; stop and tell the owner.
 10. Prefer raw HTTP (`curl`, `fetch`, `requests`). stripe-node / stripe-python can be pointed at
     Fluveo as an alternative (see `references/migrate-from-stripe.md`), but never rely on SDK method presence
     as proof that an endpoint exists.

@@ -65,7 +65,8 @@ return it as `null` on purpose. Idempotent replay bodies can contain it — do n
 ## Fulfilment integrity
 
 - Never fulfil on a redirect (`success_url`, `return_url`, `after_completion`) alone. Retrieve the PaymentIntent
-  / Checkout Session server-side and check `status` / `payment_status`.
-- Make order state transitions idempotent: a poller and a success-page handler may both observe `paid`.
-- Amounts are integers in minor units — never floats. Compare `amount_received` against what you expected.
+  / Checkout Session server-side; for a session require `status == "complete"` **and** `payment_status == "paid"`.
+- Make order state transitions idempotent: a poller and a scheduled reconciler may both observe payment completion.
+- Amounts are integers in minor units — never floats. PaymentIntents: compare `amount_received` against what you expected.
+  Checkout Sessions: compare `amount_total` and `currency` against your order (and `livemode == false` in test).
 - Validate `livemode` is what you expect for the environment (always `false` today).
