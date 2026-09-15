@@ -26,6 +26,17 @@ UI, no tax/discount/shipping calculation.
 
 ## Create a session
 
+A `200` from Checkout Session or payment link creation is not proof the account can take payments.
+Session creation can succeed before approval, returning `open` / `unpaid` and a `url` that renders a card form.
+Check `GET /v1/balance` at startup or in a health check using [authentication](authentication.md#getting-a-key);
+do not send buyers to a hosted page while the account is not enabled.
+
+**Persist first.** Create and commit your order row with your own order id and the `Idempotency-Key` you will
+use **before** the POST. Store the returned `id`, `payment_intent` and `url` against it right after the response.
+If a timeout, unknown outcome or crash loses the response, retry the unchanged request with the **same** key
+within the 24 h journal window to recover the original result, store it, then read the session. Follow the bounded
+[retry policy](errors-and-retries.md#retry-policy); if unresolved, stop and alert the owner, never create with a fresh key.
+
 Contracted body fields: `line_items` (required), `success_url` (required), `cancel_url`, `client_reference_id`,
 `customer` (`cus_...`), `customer_email`, `customer_update`, `expires_at` (unix, 30 min–24 h ahead; default 24 h),
 `metadata`, `mode` (`payment` only), `payment_intent_data[description]`, `payment_intent_data[capture_method]`
@@ -83,7 +94,10 @@ Response `200` (abbreviated):
 
 The hosted page lives on a different host than the API. Always redirect to the returned `url`; never construct it.
 
-Redirect the customer to `url` (HTTP 303). The URL carries no secrets. Store `id` and `payment_intent`
+Give the buyer their merchant order URL or a confirmation email before or independently of sending them to
+`url` (HTTP 303); do not build a flow that waits for them to come back. The URL carries no secrets. Today, after
+payment the hosted page shows "Paid successfully", "We have successfully received your payment" and "Ref Id: pay_..."
+and stays there, with no link or button back to the merchant. Store `id`, `payment_intent` and `url`
 against your order. Live ids are long and hyphenated (e.g. `cs_6d63685f…-7061795f…-5c9dfe42886faa71`); treat
 them as opaque and validate only the `cs_` prefix.
 
@@ -93,8 +107,11 @@ enum but not used for card payments). Both project the backing PaymentIntent.
 ## Fulfilment by polling
 
 Public [events and webhook endpoints](events-and-webhooks.md) are available, but delivery verification
-is not specified by this snapshot. Polling remains an option. The `success_url` visit is not proof of payment (the customer can open it directly,
-or close the tab before it loads). Fulfil only after a server-side read:
+is not specified by this snapshot. Drive the paid transition with server-side reads from polling or a scheduled
+reconciler, never from a success-page visit. A redirect alone is never proof of payment. Fulfil only after a
+server-side read shows `status == "complete"` **and** `payment_status == "paid"`; compare `amount_total` and
+`currency` against your order (and require `livemode == false` in test). The paid state can lag the hosted confirmation by seconds:
+an `open` / `unpaid` read shortly after payment means poll again, not failure.
 
 ```bash
 curl https://api.devfluveo.com/v1/checkout/sessions/cs_6d65726368616e74a1b2c3d4e5f6 -u sk_test_example:
@@ -103,9 +120,10 @@ curl https://api.devfluveo.com/v1/checkout/sessions/cs_6d65726368616e74a1b2c3d4e
 
 Recommended pattern:
 
-1. On `success_url` load, read `client_reference_id`/`order` from your own query string, look up the session id
-   you stored, `GET` the session. If `payment_status == "paid"` mark the order paid (idempotently). Otherwise
-   show "processing" and poll.
+1. From your scheduled poller or reconciler, look up the session id stored against each pending order and `GET`
+   the session. If `status == "complete"` **and** `payment_status == "paid"`, and the amount/currency match,
+   mark the order paid (idempotently). Otherwise keep `open` / `unpaid` orders processing and poll again.
+   The merchant order page can show this stored result; its visit must not drive the paid transition.
 2. Run a background reconciler that lists `GET /v1/checkout/sessions?status=open` (plus your own "pending"
    orders) and retrieves each until `complete`/`expired`.
 3. For `payment_intent_data[capture_method]=manual`, the backing intent lands in `requires_capture`; capture
@@ -115,9 +133,11 @@ Recommended pattern:
 ### success_url and session ids
 
 Fluveo does **not** substitute a `{CHECKOUT_SESSION_ID}` placeholder in `success_url` — it is passed through as a
-literal. The hosted page *may* append `payment_id` and `status` query params when redirecting to `success_url`;
-treat them as hints only, never as proof. Put **your** order id in `success_url` and map it to the stored session
-id server-side, as in step 1 of the [recommended pattern](#fulfilment-by-polling) above.
+literal. Today `success_url` is informational only: the buyer stays on the Fluveo confirmation page, rather than
+returning to the merchant. Neither a localhost nor an HTTPS `success_url` caused a redirect within 90 seconds
+in the observed tests. Put **your** order id in `success_url` and map it to the stored session id server-side;
+give the buyer their order link before checkout or send a confirmation email independently of any redirect.
+`http://localhost` success/cancel URLs are accepted in test mode for local development.
 
 ## Retrieve, list, line items
 
@@ -251,7 +271,10 @@ curl https://api.devfluveo.com/v1/checkout/branding -u sk_test_example:
 ## Node and Python
 
 ```js
-// Express-style handler: create a session and redirect
+// Express-style handler; balance check passed, buyer already has their order link.
+const idempotencyKey = `order-${orderId}-checkout`;
+// Commit before POST; on recovery reuse this order, key and unchanged request (24 h).
+await db.orders.create({ id: orderId, idempotencyKey });
 const body = new URLSearchParams({
   "line_items[0][price_data][currency]": "usd",
   "line_items[0][price_data][unit_amount]": "2000",
@@ -269,18 +292,19 @@ const res = await fetch(`${BASE}/v1/checkout/sessions`, {
   headers: { Authorization: `Bearer ${process.env.FLUVEO_API_KEY}`,
              "User-Agent": "myshop/1.0",
              "Content-Type": "application/x-www-form-urlencoded",
-             "Idempotency-Key": `order-${orderId}-checkout` },
+             "Idempotency-Key": idempotencyKey },
   body,
 });
 const session = await res.json();
 if (!res.ok) throw new Error(session.error.message);
-await db.orders.update(orderId, { checkoutSessionId: session.id, paymentIntentId: session.payment_intent });
+await db.orders.update(orderId, { checkoutSessionId: session.id, paymentIntentId: session.payment_intent, url: session.url });
 return reply.redirect(303, session.url);
 
-// Later (success page + reconciler): server-side check
+// Later (scheduled poller/reconciler, not a success-page visit): server-side check
 const s = await (await fetch(`${BASE}/v1/checkout/sessions/${session.id}`,
   { headers: { Authorization: `Bearer ${process.env.FLUVEO_API_KEY}`, "User-Agent": "myshop/1.0" } })).json();
 const paid = s.status === "complete" && s.payment_status === "paid";
+// Before fulfilment, also compare s.amount_total and s.currency to the order and s.livemode to false.
 ```
 
 ```python
@@ -288,8 +312,12 @@ import os, requests
 AUTH = (os.environ["FLUVEO_API_KEY"], "")
 BASE = os.environ.get("FLUVEO_API_BASE", "https://api.devfluveo.com")
 UA = {"User-Agent": "myshop/1.0"}
+# Balance check passed; buyer already has their order link.
+idempotency_key = f"order-{order_id}-checkout"
+# Commit before POST; on recovery reuse this order, key and unchanged request (24 h).
+db.orders.create({"id": order_id, "idempotencyKey": idempotency_key})
 r = requests.post(f"{BASE}/v1/checkout/sessions", auth=AUTH,
-    headers={**UA, "Idempotency-Key": f"order-{order_id}-checkout"},
+    headers={**UA, "Idempotency-Key": idempotency_key},
     data={
         "line_items[0][price_data][currency]": "usd",
         "line_items[0][price_data][unit_amount]": 2000,
@@ -303,11 +331,14 @@ r = requests.post(f"{BASE}/v1/checkout/sessions", auth=AUTH,
 session = r.json()
 if not r.ok:
     raise RuntimeError(session["error"])
+db.orders.update(order_id, {"checkoutSessionId": session["id"],
+    "paymentIntentId": session["payment_intent"], "url": session["url"]})
 redirect_url = session["url"]
 
-# reconcile
+# Scheduled poller/reconciler, not a success-page visit
 s = requests.get(f"{BASE}/v1/checkout/sessions/{session['id']}", auth=AUTH, headers=UA).json()
 paid = s["status"] == "complete" and s["payment_status"] == "paid"
+# Before fulfilment, also compare s["amount_total"] and s["currency"] to the order and s["livemode"] to False.
 ```
 
 ## Rejected parameters

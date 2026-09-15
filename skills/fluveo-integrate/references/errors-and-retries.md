@@ -90,8 +90,9 @@ above are documented operator guidance for the current business-rule responses, 
 
 Cloudflare sits in front of the API and returns a plain-text `403 error code: 1010` (not the JSON envelope) for
 requests whose `User-Agent` is `Python-urllib/*`; `python-requests`, curl and Node fetch pass. Never assume an
-error body parses as JSON: on a non-JSON 4xx, log the status and the first 200 bytes of the body. Fix: always
-send an explicit `User-Agent: <your-app>/<version>`.
+error body parses as JSON: for non-JSON responses log HTTP status, Content-Type and body length only;
+never log body bytes. The known edge case is a plain-text `403` body `error code: 1010` for a missing/blocked
+User-Agent. Fix: always send an explicit `User-Agent: <your-app>/<version>`.
 
 ## Idempotency journal
 
@@ -101,6 +102,7 @@ Use `Idempotency-Key` (1–255 bytes, one header) only where the resource guide 
 
 **Durable 24 h byte-for-byte journal** — PaymentIntent create/update/confirm/capture/cancel; Refund
 create/update; Customer create/update; Checkout Session create/update/expire; Payment Link create.
+Persist the order and its key before the POST; after a timeout or unknown outcome, retry the unchanged request with the same key within 24 h to recover the original result, then read the session (see [Persist first](checkout.md#create-a-session)).
 Scope: `(merchant, mode, key)`. Rules:
 
 - Identical retry → the original status + body (even a stored `5xx`), with `Idempotent-Replayed: true`.
@@ -203,7 +205,9 @@ def request(method, path, data=None, params=None, idempotency_key=None, max_trie
         try:
             err = r.json().get("error", {})
         except ValueError:  # non-JSON body from the edge (e.g. Cloudflare 403 1010)
-            err = {"type": "edge_error", "message": r.text[:200]}
+            # Only these response details are safe to log; never include body bytes.
+            err = {"type": "edge_error",
+                   "message": f"Content-Type={r.headers.get('Content-Type', '')}; body_length={len(r.content)}"}
         retry_after = float(r.headers.get("Retry-After", 0) or 0)
         if r.status_code in (409, 429) or r.status_code >= 500:
             if attempt == max_tries:
@@ -232,7 +236,11 @@ export async function fluveo(method, path, { form, idempotencyKey, maxTries = 6 
     }
     const text = await res.text();
     let body;
-    try { body = JSON.parse(text); } catch { body = { error: { type: "edge_error", message: text.slice(0, 200) } }; }
+    try { body = JSON.parse(text); } catch {
+      // Only these response details are safe to log; never include body bytes.
+      body = { error: { type: "edge_error",
+        message: `Content-Type=${res.headers.get("Content-Type") ?? ""}; body_length=${Buffer.byteLength(text)}` } };
+    }
     if (res.ok) return body;
     const retryAfter = Number(res.headers.get("Retry-After") || 0) * 1000;
     if ((res.status === 409 || res.status === 429 || res.status >= 500) && attempt < maxTries) {
