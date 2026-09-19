@@ -92,7 +92,9 @@ Cloudflare sits in front of the API and returns a plain-text `403 error code: 10
 requests whose `User-Agent` is `Python-urllib/*`; `python-requests`, curl and Node fetch pass. Never assume an
 error body parses as JSON: for non-JSON responses log HTTP status, Content-Type and body length only;
 never log body bytes. The known edge case is a plain-text `403` body `error code: 1010` for a missing/blocked
-User-Agent. Fix: always send an explicit `User-Agent: <your-app>/<version>`.
+User-Agent. Fix: always send an explicit `User-Agent: <your-app>/<version>`. Any status can arrive non-JSON from
+the edge, including `429`: read `Retry-After` (and the status) from the headers **before** trying to parse the
+body, exactly as the sample clients below do, so a non-JSON rate-limit reply still honours the provider's wait.
 
 ## Idempotency journal
 
